@@ -169,49 +169,81 @@ $("#meetingTodoInput").addEventListener("keydown",e=>{
 
 /* 증빙 템플릿 */
 function evidenceTemplate(t){
+  const resolution={name:"지출결의서",checked:false,required:true,custom:false};
   const card={name:"지원금 전용 체크카드 영수증",checked:false,required:true,custom:false};
   const transfer={name:"계좌이체 확인증",checked:false,required:true,custom:false};
 
   if(t.category==="event"&&t.subCategory==="플랜카드 제작"){
-    const docs=[t.payment==="계좌이체"?transfer:card,{name:"견적서",checked:false,required:true,custom:false},{name:"증빙사진",checked:false,required:true,custom:false}];
-    if(t.payment==="계좌이체")docs.push({name:"세금계산서",checked:false,required:true,custom:false},{name:"사업자등록증",checked:false,required:true,custom:false});
-    return {rule:"홍보비 · 현수막/인쇄물 등 제작",docs};
+    const docs=[resolution];
+    if(t.payment==="계좌이체") docs.push(
+      {name:"세금계산서 또는 현금영수증",checked:false,required:true,custom:false},
+      {name:"사업자등록증",checked:false,required:true,custom:false},
+      {name:"사업자 통장사본",checked:false,required:true,custom:false},
+      transfer,
+      {name:"홍보물 사진",checked:false,required:true,custom:false}
+    );
+    else docs.push(card,{name:"견적서",checked:false,required:true,custom:false},{name:"결과물 사진",checked:false,required:true,custom:false});
+    return {rule:"홍보비 · 최신 지출증빙 서식 기준",docs};
   }
-  if(t.category==="office"&&t.subCategory==="소모성물품구입비")return {rule:"소모성물품구입비",docs:[
-    card,{name:"거래명세표 또는 견적서",checked:false,required:true,custom:false},
-    {name:"행사(강의) 결과보고서",checked:false,required:true,custom:false},
-    {name:"참가자 서명부",checked:false,required:true,custom:false},
-    {name:"증빙사진",checked:false,required:true,custom:false},
-    {name:"비교견적서 (단일품목 20만원 이상인 경우)",checked:false,required:false,custom:false}
+  if(t.category==="office"&&t.subCategory==="소모성물품구입비")return {rule:"소모품비 · 최신 지출증빙 서식 기준",docs:[
+    resolution,{name:"카드영수증 또는 거래명세표",checked:false,required:true,custom:false},
+    {name:"구매물품 사진",checked:false,required:true,custom:false},
+    {name:"행사결과보고서",checked:false,required:true,custom:false},
+    {name:"참가자 서명부",checked:false,required:true,custom:false}
   ]};
   if(t.category==="rent"){
-    const docs=[t.payment==="계좌이체"?transfer:card,{name:"임차계약서",checked:false,required:true,custom:false},{name:"사업자등록증",checked:false,required:true,custom:false},{name:"행사(강의) 결과보고서",checked:false,required:true,custom:false},{name:"활동사진",checked:false,required:true,custom:false},{name:"참가자 서명부",checked:false,required:true,custom:false}];
-    if(t.payment==="계좌이체")docs.push({name:"세금계산서",checked:false,required:true,custom:false});
-    return {rule:"임차료 · 장소/기자재 등",docs};
+    const docs=[resolution];
+    if(t.payment==="계좌이체") docs.push(
+      {name:"세금계산서",checked:false,required:true,custom:false},
+      {name:"임차계약서",checked:false,required:true,custom:false},
+      {name:"사업자등록증",checked:false,required:true,custom:false},
+      {name:"사업자 통장사본",checked:false,required:true,custom:false},
+      {name:"행사결과보고서",checked:false,required:true,custom:false},
+      {name:"참가자 서명부",checked:false,required:true,custom:false},
+      {name:"임차물품(장소) 사진",checked:false,required:true,custom:false}
+    );
+    else docs.push(card,{name:"임차계약서",checked:false,required:true,custom:false},{name:"사업자등록증",checked:false,required:true,custom:false},{name:"행사결과보고서",checked:false,required:true,custom:false},{name:"참가자 서명부",checked:false,required:true,custom:false},{name:"임차물품(장소) 사진",checked:false,required:true,custom:false});
+    return {rule:"임차비 · 최신 지출증빙 서식 기준",docs};
   }
-  if(t.category==="allowance")return {rule:"운영수당·자문료",docs:[
-    {name:"강사등급 확인 서류",checked:false,required:true,custom:false},
-    {name:"강사/자문자 프로필",checked:false,required:true,custom:false},
-    {name:"강의·자문 자료",checked:false,required:true,custom:false},
-    {name:"강의·자문 사진",checked:false,required:true,custom:false},
-    {name:"강의확인서 또는 자문확인서 (주소 명시)",checked:false,required:true,custom:false},
-    {name:"강사/자문자 통장사본",checked:false,required:true,custom:false},
-    {name:"행사(강의) 결과보고서 (강의시간 명시)",checked:false,required:true,custom:false},
-    {name:"참가자 서명부",checked:false,required:true,custom:false},
-    {name:"계좌이체 확인증",checked:false,required:true,custom:false},
-    {name:"원천징수 납부 확인서 (월 125,000원 초과 지급 시)",checked:false,required:false,custom:false}
+  if(t.category==="allowance")return {rule:"인건비(강사비·자문료 등) · 최신 지출증빙 서식 기준",docs:[
+    resolution,{name:"강사등급 확인서류",checked:false,required:true,custom:false},{name:"전문가 프로필",checked:false,required:true,custom:false},
+    {name:"강의확인서",checked:false,required:true,custom:false},{name:"통장사본",checked:false,required:true,custom:false},
+    {name:"계좌이체 확인증",checked:false,required:true,custom:false},{name:"활동자료(강의자료·강의사진 등)",checked:false,required:true,custom:false},
+    {name:"원천징수 납부확인증 (동일인 월 125,000원 초과 시)",checked:false,required:false,custom:false},
+    {name:"행사결과보고서",checked:false,required:true,custom:false},{name:"참가자 서명부",checked:false,required:true,custom:false}
   ]};
-  if(t.category==="event"&&t.subCategory==="행사운영비(재료비)")return {rule:"행사운영비 · 물품/재료비",docs:[
-    card,{name:"구입물품 사진",checked:false,required:true,custom:false},{name:"활동사진",checked:false,required:true,custom:false},{name:"행사결과보고서",checked:false,required:true,custom:false},{name:"참가자 서명부",checked:false,required:true,custom:false}
+  if(t.category==="event"&&t.subCategory==="행사운영비(재료비)")return {rule:"행사운영비 · 최신 지출증빙 서식 기준",docs:[
+    resolution,card,{name:"결과보고서",checked:false,required:true,custom:false},{name:"참가자 서명부",checked:false,required:true,custom:false},{name:"관련 사진",checked:false,required:true,custom:false}
   ]};
-  if(t.category==="office"&&t.subCategory==="식비/다과비")return {rule:"식비·다과비",docs:[
-    card,{name:"참가자 서명부",checked:false,required:true,custom:false},{name:"행사(강의) 결과보고서 또는 회의록",checked:false,required:true,custom:false}
+  if(t.category==="office"&&t.subCategory==="식비/다과비")return {rule:"회의비(식·다과비) · 최신 지출증빙 서식 기준",docs:[
+    resolution,card,{name:"회의록+서명부 또는 행사결과보고서+서명부",checked:false,required:true,custom:false},{name:"관련 사진",checked:false,required:true,custom:false}
   ]};
-  return {rule:"기타 집행",docs:[t.payment==="계좌이체"?transfer:card]};
+  return {rule:"기타 집행 · 최신 지출증빙 서식 기준",docs:[resolution,t.payment==="계좌이체"?transfer:card]};
 }
 function mergeEvidence(t){
   const tpl=evidenceTemplate(t),old=evidenceDocs[t.id]||[],map=new Map(old.map(d=>[d.name,d]));
-  const merged=tpl.docs.map(d=>({...d,checked:map.has(d.name)?!!map.get(d.name).checked:d.checked}));
+  const aliases={
+    "결과물 사진":["증빙사진","홍보물 사진"],
+    "홍보물 사진":["증빙사진","결과물 사진"],
+    "카드영수증 또는 거래명세표":["지원금 전용 체크카드 영수증","거래명세표 또는 견적서"],
+    "구매물품 사진":["증빙사진","구입물품 사진"],
+    "행사결과보고서":["행사(강의) 결과보고서","행사결과보고서","결과보고서"],
+    "결과보고서":["행사결과보고서","행사(강의) 결과보고서"],
+    "임차물품(장소) 사진":["활동사진"],
+    "강사등급 확인서류":["강사등급 확인 서류"],
+    "전문가 프로필":["강사/자문자 프로필"],
+    "강의확인서":["강의확인서 또는 자문확인서 (주소 명시)"],
+    "통장사본":["강사/자문자 통장사본"],
+    "활동자료(강의자료·강의사진 등)":["강의·자문 자료","강의·자문 사진"],
+    "원천징수 납부확인증 (동일인 월 125,000원 초과 시)":["원천징수 납부 확인서 (월 125,000원 초과 지급 시)"],
+    "회의록+서명부 또는 행사결과보고서+서명부":["참가자 서명부","행사(강의) 결과보고서 또는 회의록"]
+  };
+  const findOld=name=>{
+    if(map.has(name)) return map.get(name);
+    for(const alt of aliases[name]||[]) if(map.has(alt)) return map.get(alt);
+    return null;
+  };
+  const merged=tpl.docs.map(d=>{const o=findOld(d.name);return {...d,checked:o?!!o.checked:d.checked}});
   old.filter(d=>d.custom).forEach(d=>{if(!merged.some(x=>x.name===d.name))merged.push(d)});
   evidenceDocs[t.id]=merged;saveEvidence();
 }
@@ -437,25 +469,39 @@ $("#stationeryForm").addEventListener("submit",e=>{
 });
 $("#deleteStationeryBtn").onclick=()=>{const id=$("#stationeryEditId").value;if(id&&confirm("이 여수문구사 내역을 삭제할까요?")){stationeryTransactions=stationeryTransactions.filter(x=>x.id!==id);saveStationery();closeDialog($("#stationeryDialog"));renderAll()}};
 
-/* 회의 */
+/* 모임 */
+function normalizeMeetingStatus(v,legacyBool){
+  if(["needed","done","na"].includes(v))return v;
+  if(legacyBool===true)return "done";
+  return "needed";
+}
+function meetingStatusLabel(v){return v==="done"?"완료":v==="na"?"필요없음":"필요"}
 function renderMeetings(){
-  const rows=[...meetings].sort((a,b)=>b.date.localeCompare(a.date));
-  $("#meetingList").innerHTML=rows.map(m=>`
-    <div class="meeting-card" data-id="${m.id}">
-      <div class="meeting-title-row"><div class="meeting-title">${escapeHtml(m.title)}</div><div class="meeting-date">${m.date}</div></div>
+  const rows=[...meetings].sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+  $("#meetingList").innerHTML=rows.map(m=>{
+    const ps=normalizeMeetingStatus(m.photoStatus,m.photo),ms=normalizeMeetingStatus(m.minutesStatus,m.minutes);
+    return `<div class="meeting-card" data-id="${m.id}">
+      <div class="meeting-title-row"><div class="meeting-title">${escapeHtml(m.title)}</div><div class="meeting-date">${m.date||"날짜 확인 필요"}</div></div>
       <div class="meeting-checks">
-        <span class="status-pill ${m.photo?'done':''}">사진 ${m.photo?'완료':'미완료'}</span>
-        <span class="status-pill ${m.minutes?'done':''}">회의록 ${m.minutes?'완료':'미완료'}</span>
+        <span class="status-pill ${ps==='done'?'done':ps==='na'?'na':''}">사진 ${meetingStatusLabel(ps)}</span>
+        <span class="status-pill ${ms==='done'?'done':ms==='na'?'na':''}">회의록 ${meetingStatusLabel(ms)}</span>
       </div>
       ${m.memo?`<div class="meeting-memo">${escapeHtml(m.memo)}</div>`:""}
-    </div>`).join("");
+    </div>`;
+  }).join("");
   $("#meetingEmpty").style.display=rows.length?"none":"block";document.querySelectorAll(".meeting-card").forEach(el=>el.onclick=()=>openMeetingEdit(el.dataset.id));
 }
-function openMeetingNew(){$("#meetingDialogTitle").textContent="회의 추가";$("#meetingEditId").value="";$("#meetingDate").value=new Date().toISOString().slice(0,10);$("#meetingTitle").value="";$("#meetingPhoto").checked=false;$("#meetingMinutes").checked=false;$("#meetingMemo").value="";$("#deleteMeetingBtn").classList.add("hidden");openDialog($("#meetingDialog"))}
-function openMeetingEdit(id){const m=meetings.find(x=>x.id===id);if(!m)return;$("#meetingDialogTitle").textContent="회의 수정";$("#meetingEditId").value=id;$("#meetingDate").value=m.date;$("#meetingTitle").value=m.title;$("#meetingPhoto").checked=!!m.photo;$("#meetingMinutes").checked=!!m.minutes;$("#meetingMemo").value=m.memo||"";$("#deleteMeetingBtn").classList.remove("hidden");openDialog($("#meetingDialog"))}
+function openMeetingNew(){
+  $("#meetingDialogTitle").textContent="모임 추가";$("#meetingEditId").value="";$("#meetingDate").value=new Date().toISOString().slice(0,10);$("#meetingTitle").value="";
+  $("#meetingPhotoStatus").value="needed";$("#meetingMinutesStatus").value="needed";$("#meetingMemo").value="";$("#deleteMeetingBtn").classList.add("hidden");openDialog($("#meetingDialog"));
+}
+function openMeetingEdit(id){
+  const m=meetings.find(x=>x.id===id);if(!m)return;$("#meetingDialogTitle").textContent="모임 수정";$("#meetingEditId").value=id;$("#meetingDate").value=m.date||"";$("#meetingTitle").value=m.title;
+  $("#meetingPhotoStatus").value=normalizeMeetingStatus(m.photoStatus,m.photo);$("#meetingMinutesStatus").value=normalizeMeetingStatus(m.minutesStatus,m.minutes);$("#meetingMemo").value=m.memo||"";$("#deleteMeetingBtn").classList.remove("hidden");openDialog($("#meetingDialog"));
+}
 $("#addMeetingBtn").onclick=openMeetingNew;$("#closeMeetingDialog").onclick=()=>closeDialog($("#meetingDialog"));
-$("#meetingForm").addEventListener("submit",e=>{e.preventDefault();const obj={id:$("#meetingEditId").value||uid(),date:$("#meetingDate").value,title:$("#meetingTitle").value.trim(),photo:$("#meetingPhoto").checked,minutes:$("#meetingMinutes").checked,memo:$("#meetingMemo").value.trim()};const i=meetings.findIndex(x=>x.id===obj.id);if(i>=0)meetings[i]=obj;else meetings.push(obj);saveMeetings();closeDialog($("#meetingDialog"));renderMeetings()});
-$("#deleteMeetingBtn").onclick=()=>{const id=$("#meetingEditId").value;if(id&&confirm("이 회의 기록을 삭제할까요?")){meetings=meetings.filter(x=>x.id!==id);saveMeetings();closeDialog($("#meetingDialog"));renderMeetings()}};
+$("#meetingForm").addEventListener("submit",e=>{e.preventDefault();const obj={id:$("#meetingEditId").value||uid(),date:$("#meetingDate").value,title:$("#meetingTitle").value.trim(),photoStatus:$("#meetingPhotoStatus").value,minutesStatus:$("#meetingMinutesStatus").value,memo:$("#meetingMemo").value.trim()};const i=meetings.findIndex(x=>x.id===obj.id);if(i>=0)meetings[i]=obj;else meetings.push(obj);saveMeetings();closeDialog($("#meetingDialog"));renderMeetings()});
+$("#deleteMeetingBtn").onclick=()=>{const id=$("#meetingEditId").value;if(id&&confirm("이 모임 기록을 삭제할까요?")){meetings=meetings.filter(x=>x.id!==id);saveMeetings();closeDialog($("#meetingDialog"));renderMeetings()}};
 
 /* CSV/백업 */
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -470,11 +516,11 @@ function dateNorm(v){const s=String(v||"").trim(),m=s.match(/^(\d{4})[-./](\d{1,
 function bool(v){return ["1","true","완료","체크","예","y","yes"].includes(String(v||"").trim().toLowerCase())}
 
 $("#csvExportBtn").onclick=()=>{
-  const h=["구분","내역ID","날짜","예산항목","세부항목","사용처","품목","수량","금액","상품금액","결제수단","증빙상태","구매유형","인터넷링크","수수료방식","수수료율","수수료금액","택배비","증빙서류명","체크여부","필수여부","사용자추가","회의제목","사진완료","회의록완료","메모"];
+  const h=["구분","내역ID","날짜","예산항목","세부항목","사용처","품목","수량","금액","상품금액","결제수단","증빙상태","구매유형","인터넷링크","수수료방식","수수료율","수수료금액","택배비","증빙서류명","체크여부","필수여부","사용자추가","모임제목","사진상태","회의록상태","메모"];
   const rows=[h];
   transactions.forEach(t=>{rows.push(["사업비",t.id,t.date,catById(t.category)?.name||"",t.subCategory,t.merchant,"","",t.amount,"",t.payment||"",t.evidence||"todo","","","","","","","","","","","","","",t.memo||""]);(evidenceDocs[t.id]||[]).forEach(d=>rows.push(["증빙서류",t.id,"","","","","","","","","","","","","","","","",d.name,d.checked?"체크":"미체크",d.required===false?"조건부":"필수",d.custom?"예":"아니오","","","", ""]))});
   stationeryTransactions.forEach(t=>rows.push(["여수문구사",t.id,t.date,"사무관리비","소모성물품구입비","",t.item,t.qty||"",Number(t.total??t.amount??0),Number(t.amount||0),"","","인터넷 대행구매"===((t.purchaseType||"store")==="link"?"인터넷 대행구매":"직접구매")?"인터넷 대행구매":"직접구매",t.link||"",t.feeMode||"",t.feeRate||0,t.fee||0,t.shipping||0,"","","","","","","",t.memo||""]));
-  meetings.forEach(m=>rows.push(["회의",m.id,m.date,"","","","","","","","","","","","","","","","","","","",m.title,m.photo?"완료":"미완료",m.minutes?"완료":"미완료",m.memo||""]));
+  meetings.forEach(m=>rows.push(["모임",m.id,m.date,"","","","","","","","","","","","","","","","","","","",m.title,meetingStatusLabel(normalizeMeetingStatus(m.photoStatus,m.photo)),meetingStatusLabel(normalizeMeetingStatus(m.minutesStatus,m.minutes)),m.memo||""]));
   const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");download(`무지개반사_통합백업_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
 };
 
@@ -486,7 +532,9 @@ $("#csvImportInput").onchange=async e=>{
     for(const o of objs){
       const type=first(o,["구분"]),id=first(o,["내역ID"])||uid();
       if(type==="증빙서류"){evRows.push(o);continue}
-      if(type==="회의"){meetings.push({id,date:dateNorm(first(o,["날짜"])),title:first(o,["회의제목"])||"회의",photo:bool(first(o,["사진완료"])),minutes:bool(first(o,["회의록완료"])),memo:first(o,["메모"])});continue}
+      if(type==="모임"||type==="회의"){
+        const parseStatus=v=>{const s=String(v||"").trim();if(s==="완료")return "done";if(s==="필요없음")return "na";return "needed"};
+        meetings.push({id,date:dateNorm(first(o,["날짜"])),title:first(o,["모임제목","회의제목"])||"모임",photoStatus:parseStatus(first(o,["사진상태","사진완료"])),minutesStatus:parseStatus(first(o,["회의록상태","회의록완료"])),memo:first(o,["메모"])});continue}
       if(type==="여수문구사"){
         const amount=Number(first(o,["상품금액"])||first(o,["금액"])||0),fee=Number(first(o,["수수료금액"])||0),shipping=Number(first(o,["택배비"])||0);
         stationeryTransactions.push({id,date:dateNorm(first(o,["날짜"])),purchaseType:first(o,["구매유형"]).includes("인터넷")?"link":"store",item:first(o,["품목"])||"품목",qty:first(o,["수량"]),amount,link:first(o,["인터넷링크"]),feeMode:first(o,["수수료방식"])||"none",feeRate:Number(first(o,["수수료율"])||0),fee,shipping,total:Number(first(o,["금액"])||amount+fee+shipping),memo:first(o,["메모"])});continue}
@@ -499,13 +547,13 @@ $("#csvImportInput").onchange=async e=>{
   e.target.value="";
 };
 
-$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.6",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos,stationeryPayments},null,2),"application/json");
+$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.7",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos,stationeryPayments},null,2),"application/json");
 $("#restoreInput").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!Array.isArray(o.transactions))throw new Error();if(confirm("현재 데이터를 백업 내용으로 바꿀까요?")){transactions=o.transactions||[];stationeryTransactions=o.stationeryTransactions||[];evidenceDocs=o.evidenceDocs||{};todos=o.todos||[];meetings=o.meetings||[];meetingTodos=o.meetingTodos||[];stationeryPayments=o.stationeryPayments||{"8":false,"9":false,"10":false};save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();saveStationeryPayments();renderAll()}}catch{alert("올바른 백업 파일이 아닙니다.")}e.target.value=""};
 $("#resetBtn").onclick=()=>{if(confirm("모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){transactions=[];stationeryTransactions=[];evidenceDocs={};todos=[];meetings=[];meetingTodos=[];stationeryPayments={"8":false,"9":false,"10":false};save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();saveStationeryPayments();renderAll()}};
 
 /* 전체 렌더 */
 function renderAll(){renderTodos();renderMeetingTodos();renderHome();renderTransactions();renderStationery();renderMeetings()}
-migrateRentSubs();transactions.forEach(t=>{ensureEvidence(t);syncEvidence(t)});save();initSelects();renderAll();
+migrateRentSubs();transactions.forEach(t=>{mergeEvidence(t);syncEvidence(t)});save();saveEvidence();meetings=meetings.map(m=>({...m,photoStatus:normalizeMeetingStatus(m.photoStatus,m.photo),minutesStatus:normalizeMeetingStatus(m.minutesStatus,m.minutes)}));saveMeetings();initSelects();renderAll();
 
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}
 

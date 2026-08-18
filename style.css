@@ -345,3 +345,5 @@ body{
   -webkit-text-size-adjust:100%;
   text-size-adjust:100%;
 }
+\n/* v2.7 모임 상태 */
+.status-pill.na{background:#f1f2f5;color:#7b808b}

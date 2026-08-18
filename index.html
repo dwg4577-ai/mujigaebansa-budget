@@ -7,12 +7,12 @@
   <title>무지개반사 예산관리</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.svg"/>
-  <link rel="stylesheet" href="style.css?v=2.6"/>
+  <link rel="stylesheet" href="style.css?v=2.7"/>
 </head>
 <body>
   <header class="top">
     <div>
-      <div class="eyebrow">2026 전남형 청년공동체 · <b>v2.6</b></div>
+      <div class="eyebrow">2026 전남형 청년공동체 · <b>v2.7</b></div>
       <h1>무지개반사 예산관리</h1>
     </div>
   </header>
@@ -138,13 +138,13 @@
       <section class="section page-section">
         <div class="section-head">
           <div>
-            <h2>회의 기록</h2>
-            <p>회의 날짜와 사진·회의록 작성 여부를 관리해요.</p>
+            <h2>모임 기록</h2>
+            <p>모임 날짜와 사진·회의록 필요 여부를 관리해요.</p>
           </div>
-          <button id="addMeetingBtn" class="primary">+ 회의 추가</button>
+          <button id="addMeetingBtn" class="primary">+ 모임 추가</button>
         </div>
         <div id="meetingList" class="meeting-list"></div>
-        <div id="meetingEmpty" class="empty">등록된 회의가 없어요.</div>
+        <div id="meetingEmpty" class="empty">등록된 모임이 없어요.</div>
       </section>
     </section>
 
@@ -216,7 +216,7 @@
       <span class="nav-icon">✎</span><span>문구사</span>
     </button>
     <button class="bottom-tab" data-page="meeting">
-      <span class="nav-icon">☷</span><span>회의</span>
+      <span class="nav-icon">☷</span><span>모임</span>
     </button>
     <button class="bottom-tab" data-page="settings">
       <span class="nav-icon">⚙</span><span>설정</span>
@@ -318,15 +318,27 @@
   <dialog id="meetingDialog">
     <form id="meetingForm" method="dialog">
       <div class="dialog-head">
-        <h2 id="meetingDialogTitle">회의 추가</h2>
+        <h2 id="meetingDialogTitle">모임 추가</h2>
         <button type="button" id="closeMeetingDialog" class="icon-btn">✕</button>
       </div>
       <div class="dialog-scroll">
         <input type="hidden" id="meetingEditId"/>
-        <label>회의 날짜<input id="meetingDate" type="date" required/></label>
-        <label>회의 제목 / 내용<input id="meetingTitle" type="text" placeholder="예: 8월 활동 준비회의" required/></label>
-        <label class="check-row"><input id="meetingPhoto" type="checkbox"/> 사진 정리 완료</label>
-        <label class="check-row"><input id="meetingMinutes" type="checkbox"/> 회의록 작성 완료</label>
+        <label>모임 날짜<input id="meetingDate" type="date" required/></label>
+        <label>모임 제목 / 내용<input id="meetingTitle" type="text" placeholder="예: 8월 활동 준비모임" required/></label>
+        <label>사진
+          <select id="meetingPhotoStatus">
+            <option value="needed">필요</option>
+            <option value="done">완료</option>
+            <option value="na">필요없음</option>
+          </select>
+        </label>
+        <label>회의록
+          <select id="meetingMinutesStatus">
+            <option value="needed">필요</option>
+            <option value="done">완료</option>
+            <option value="na">필요없음</option>
+          </select>
+        </label>
         <label>메모<textarea id="meetingMemo" rows="3"></textarea></label>
       </div>
       <div class="dialog-actions sticky">
@@ -336,6 +348,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=2.6"></script>
+  <script src="app.js?v=2.7"></script>
 </body>
 </html>
