@@ -70,7 +70,24 @@ function switchPage(name){
   document.querySelectorAll(".bottom-tab").forEach(b=>b.classList.toggle("active",b.dataset.page===name));
   window.scrollTo({top:0,behavior:"smooth"});
 }
-document.querySelectorAll(".bottom-tab").forEach(b=>b.onclick=()=>switchPage(b.dataset.page));
+function clearBudgetFilters(){
+  $("#filterCategory").value="";
+  updateFilterSubcategories();
+  $("#filterSubCategory").value="";
+  $("#filterEvidence").value="";
+  renderTransactions();
+}
+document.querySelectorAll(".bottom-tab").forEach(b=>b.onclick=()=>{
+  const page=b.dataset.page;
+  if(page==="budget" && $("#budgetPage").classList.contains("active")){
+    clearBudgetFilters();
+    window.scrollTo({top:0,behavior:"smooth"});
+    return;
+  }
+  switchPage(page);
+});
+$("#spentSummaryCard").onclick=()=>{clearBudgetFilters();switchPage("budget")};
+$("#spentSummaryCard").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();clearBudgetFilters();switchPage("budget")}});
 $("#stationerySummaryCard").onclick=()=>switchPage("stationery");
 $("#stationerySummaryCard").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();switchPage("stationery")}});
 
@@ -482,7 +499,7 @@ $("#csvImportInput").onchange=async e=>{
   e.target.value="";
 };
 
-$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.5",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos,stationeryPayments},null,2),"application/json");
+$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.6",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos,stationeryPayments},null,2),"application/json");
 $("#restoreInput").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!Array.isArray(o.transactions))throw new Error();if(confirm("현재 데이터를 백업 내용으로 바꿀까요?")){transactions=o.transactions||[];stationeryTransactions=o.stationeryTransactions||[];evidenceDocs=o.evidenceDocs||{};todos=o.todos||[];meetings=o.meetings||[];meetingTodos=o.meetingTodos||[];stationeryPayments=o.stationeryPayments||{"8":false,"9":false,"10":false};save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();saveStationeryPayments();renderAll()}}catch{alert("올바른 백업 파일이 아닙니다.")}e.target.value=""};
 $("#resetBtn").onclick=()=>{if(confirm("모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){transactions=[];stationeryTransactions=[];evidenceDocs={};todos=[];meetings=[];meetingTodos=[];stationeryPayments={"8":false,"9":false,"10":false};save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();saveStationeryPayments();renderAll()}};
 

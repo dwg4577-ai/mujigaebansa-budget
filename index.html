@@ -7,12 +7,12 @@
   <title>무지개반사 예산관리</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.svg"/>
-  <link rel="stylesheet" href="style.css?v=2.5"/>
+  <link rel="stylesheet" href="style.css?v=2.6"/>
 </head>
 <body>
   <header class="top">
     <div>
-      <div class="eyebrow">2026 전남형 청년공동체 · <b>v2.5</b></div>
+      <div class="eyebrow">2026 전남형 청년공동체 · <b>v2.6</b></div>
       <h1>무지개반사 예산관리</h1>
     </div>
   </header>
@@ -34,7 +34,7 @@
           <strong id="totalBudget">0원</strong>
           <small>지방비 기준</small>
         </article>
-        <article class="card">
+        <article id="spentSummaryCard" class="card clickable-card" role="button" tabindex="0">
           <span>집행액</span>
           <strong id="spentTotal">0원</strong>
           <small id="spentRate">0% 집행</small>
@@ -336,6 +336,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=2.5"></script>
+  <script src="app.js?v=2.6"></script>
 </body>
 </html>
