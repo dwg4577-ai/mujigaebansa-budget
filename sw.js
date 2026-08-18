@@ -1,42 +1,12 @@
-const CACHE='mujigaebansa-budget-v17';
-const ASSETS=['./','index.html','style.css?v=17','app.js?v=17','manifest.json','icon.svg'];
-
-self.addEventListener('install', event => {
-  self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
-});
-
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request, {cache:'no-store'})
-        .then(res => {
-          const copy=res.clone();
-          caches.open(CACHE).then(c=>c.put('index.html',copy));
-          return res;
-        })
-        .catch(()=>caches.match('index.html'))
-    );
-    return;
+const CACHE='mujigaebansa-budget-v18';
+const ASSETS=['./','index.html','style.css?v=18','app.js?v=18','manifest.json','icon.svg'];
+self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  if(e.request.mode==='navigate'){
+    e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{const x=r.clone();caches.open(CACHE).then(c=>c.put('index.html',x));return r}).catch(()=>caches.match('index.html')));
+  }else{
+    e.respondWith(fetch(e.request,{cache:'no-store'}).then(r=>{if(r&&r.ok){const x=r.clone();caches.open(CACHE).then(c=>c.put(e.request,x))}return r}).catch(()=>caches.match(e.request)));
   }
-  event.respondWith(
-    fetch(event.request,{cache:'no-store'})
-      .then(res=>{
-        if(res && res.ok){
-          const copy=res.clone();
-          caches.open(CACHE).then(c=>c.put(event.request,copy));
-        }
-        return res;
-      })
-      .catch(()=>caches.match(event.request))
-  );
 });

@@ -689,6 +689,7 @@ $("#stationeryEvidenceFilter").onchange=renderStationery;
 
 
 
+
 function parseCsv(text){
   text=String(text||"").replace(/^\uFEFF/,"");
   const rows=[];
@@ -724,6 +725,10 @@ function parseAmount(v){
   const n=Number(String(v||"").replace(/[^\d.-]/g,""));
   return Number.isFinite(n)?n:NaN;
 }
+function parseBool(v){
+  const s=String(v||"").trim().toLowerCase();
+  return ["1","true","yes","y","완료","체크","o","○","예"].includes(s);
+}
 function categoryIdFromName(name){
   const s=String(name||"").trim();
   const aliases={
@@ -743,7 +748,6 @@ function normalizeSubcategory(catId,sub){
   if(!b)return "";
   const direct=b.subs.find(x=>x.name===s);
   if(direct)return direct.name;
-
   const aliases={
     "재료비":"행사운영비(재료비)",
     "행사운영비재료비":"행사운영비(재료비)",
@@ -771,6 +775,7 @@ function firstVal(obj,names){
 }
 function showImportResult(message,type="success"){
   const el=$("#csvImportResult");
+  if(!el)return;
   el.className=`import-result ${type}`;
   el.innerHTML=message;
 }
@@ -779,89 +784,153 @@ function importCsvText(text){
   if(rows.length<2) throw new Error("CSV에 데이터 행이 없습니다.");
 
   const headers=rows[0];
-  let addedBudget=0,addedStationery=0,duplicates=0,skipped=[];
+  const data=rows.slice(1).map((r,i)=>({o:rowObj(headers,r),line:i+2}));
+  const evidenceRows=[];
+  const idMap=new Map();
+  const existingById=new Map(transactions.map(t=>[t.id,t]));
   const existingKeys=new Set(transactions.map(t=>`${t.date}|${t.merchant}|${Number(t.amount)}`));
+  let addedBudget=0,addedStationery=0,updatedEvidence=0,duplicates=0;
+  const skipped=[];
 
-  rows.slice(1).forEach((row,idx)=>{
-    const o=rowObj(headers,row);
-    const line=idx+2;
+  for(const {o,line} of data){
     const type=firstVal(o,["구분","유형","type"]) || "사업비";
-    const date=normalizeDate(firstVal(o,["날짜","일자","date"]));
-    const amount=parseAmount(firstVal(o,["금액","결제금액","amount"]));
 
-    if(!date || !Number.isFinite(amount) || amount<0){
+    if(type.includes("증빙서류")){
+      evidenceRows.push({o,line});
+      continue;
+    }
+
+    const date=normalizeDate(firstVal(o,["날짜","일자","date"]));
+    const totalAmount=parseAmount(firstVal(o,["금액","총지출액","결제금액","amount"]));
+    const importedId=firstVal(o,["내역ID","ID","id"]);
+
+    if(!date || !Number.isFinite(totalAmount) || totalAmount<0){
       skipped.push(`${line}행: 날짜 또는 금액 확인 필요`);
-      return;
+      continue;
     }
 
     if(type.includes("여수문구사")){
-      // "여수문구사 결제" summary rows are not imported as detail rows.
-      if(type.includes("결제")){
-        skipped.push(`${line}행: 여수문구사 결제 요약 행은 제외`);
-        return;
-      }
-      const item=firstVal(o,["세부항목/품목","품목","사용처/수량","사용처","내용"]);
+      const item=firstVal(o,["품목","세부항목/품목","사용처/수량","사용처","내용"]);
       if(!item){
         skipped.push(`${line}행: 여수문구사 품목이 비어 있음`);
-        return;
+        continue;
       }
+      const id=importedId || crypto.randomUUID();
+      const purchaseRaw=firstVal(o,["구매유형"]);
+      const purchaseType=(purchaseRaw==="인터넷 대행구매" || purchaseRaw==="link") ? "link" : "store";
+      const productAmount=parseAmount(firstVal(o,["상품금액"]));
+      const fee=parseAmount(firstVal(o,["수수료금액","수수료"]));
+      const shipping=parseAmount(firstVal(o,["택배비"]));
+
       stationeryTransactions.push({
-        id:crypto.randomUUID(),
+        id,
         date,
+        purchaseType,
         item,
-        amount,
-        qty:firstVal(o,["수량","사용처/수량"]),
+        link:firstVal(o,["인터넷링크","링크"]),
+        amount:Number.isFinite(productAmount)?productAmount:totalAmount,
+        feeMode:firstVal(o,["수수료방식"]) || (purchaseType==="link"?"percent":"none"),
+        feeRate:Number(firstVal(o,["수수료율"])||0),
+        feeFixed:0,
+        fee:Number.isFinite(fee)?fee:0,
+        shipping:Number.isFinite(shipping)?shipping:0,
+        total:totalAmount,
+        qty:firstVal(o,["수량"]),
         evidence:(firstVal(o,["증빙상태"])||"필요").includes("완료")?"done":"todo",
         memo:firstVal(o,["메모","비고"])
       });
+      if(importedId) idMap.set(importedId,id);
       addedStationery++;
-      return;
+      continue;
     }
 
     const categoryName=firstVal(o,["예산항목","비목","카테고리"]);
-    const subName=firstVal(o,["세부항목/품목","세부항목","사용처"]);
-    const merchant=firstVal(o,["사용처/수량","사용처","거래처","내용"]);
+    const subName=firstVal(o,["세부항목","세부항목/품목"]);
+    const merchant=firstVal(o,["사용처","사용처/수량","거래처","내용"]);
     const category=categoryIdFromName(categoryName);
     const subCategory=normalizeSubcategory(category,subName);
 
     if(!category || !subCategory || !merchant){
       skipped.push(`${line}행: 예산항목·세부항목·사용처 확인 필요`);
-      return;
+      continue;
     }
 
-    const dupKey=`${date}|${merchant}|${amount}`;
-    if(existingKeys.has(dupKey)){duplicates++;return;}
+    if(importedId && existingById.has(importedId)){
+      idMap.set(importedId,importedId);
+      duplicates++;
+      continue;
+    }
 
+    const dupKey=`${date}|${merchant}|${totalAmount}`;
+    if(existingKeys.has(dupKey)){
+      duplicates++;
+      const match=transactions.find(t=>`${t.date}|${t.merchant}|${Number(t.amount)}`===dupKey);
+      if(importedId && match) idMap.set(importedId,match.id);
+      continue;
+    }
+
+    const id=importedId || crypto.randomUUID();
     const evidence=(firstVal(o,["증빙상태"])||"필요").includes("완료")?"done":"todo";
     const tx={
-      id:crypto.randomUUID(),
-      date,
-      category,
-      subCategory,
-      merchant,
-      amount,
+      id,date,category,subCategory,merchant,amount:totalAmount,
       payment:firstVal(o,["결제수단"]) || "전용카드",
       evidence,
       memo:firstVal(o,["메모","비고"])
     };
     transactions.push(tx);
+    existingById.set(id,tx);
     existingKeys.add(dupKey);
+    if(importedId) idMap.set(importedId,id);
 
-    evidenceDocs[tx.id]=defaultEvidenceDocs(tx);
+    evidenceDocs[id]=defaultEvidenceDocs(tx);
     if(evidence==="done"){
-      evidenceDocs[tx.id].forEach(d=>{if(d.required!==false)d.checked=true;});
+      evidenceDocs[id].forEach(d=>{if(d.required!==false)d.checked=true;});
     }
     addedBudget++;
+  }
+
+  // 증빙서류 행은 내역ID로 사업비 내역에 연결
+  const grouped=new Map();
+  for(const {o,line} of evidenceRows){
+    const sourceId=firstVal(o,["내역ID","ID","id"]);
+    const docName=firstVal(o,["증빙서류명","서류명","증빙서류"]);
+    if(!sourceId || !docName){
+      skipped.push(`${line}행: 증빙서류 내역ID 또는 서류명 확인 필요`);
+      continue;
+    }
+    const targetId=idMap.get(sourceId) || (existingById.has(sourceId)?sourceId:"");
+    if(!targetId){
+      skipped.push(`${line}행: 연결할 사업비 내역을 찾지 못함`);
+      continue;
+    }
+    if(!grouped.has(targetId)) grouped.set(targetId,[]);
+    grouped.get(targetId).push({
+      name:docName,
+      checked:parseBool(firstVal(o,["체크여부","체크","완료여부"])),
+      required:!["조건부","선택"].includes(firstVal(o,["필수여부"])),
+      conditional:["조건부","선택"].includes(firstVal(o,["필수여부"])),
+      custom:parseBool(firstVal(o,["사용자추가","커스텀"]))
+    });
+  }
+
+  grouped.forEach((docs,id)=>{
+    evidenceDocs[id]=docs;
+    const t=transactions.find(x=>x.id===id);
+    if(t){
+      syncEvidenceStatus(t);
+      updatedEvidence++;
+    }
   });
 
   save();saveStationery();saveEvidence();render();
 
   const parts=[
     `사업비 <b>${addedBudget}건</b>`,
-    `여수문구사 <b>${addedStationery}건</b>`
+    `여수문구사 <b>${addedStationery}건</b>`,
+    `증빙 체크상태 <b>${updatedEvidence}건</b>`
   ];
   if(duplicates)parts.push(`중복 제외 <b>${duplicates}건</b>`);
-  let html=`CSV 가져오기 완료: ${parts.join(" · ")}`;
+  let html=`통합 CSV 가져오기 완료: ${parts.join(" · ")}`;
   if(skipped.length){
     html+=`<br>확인 필요한 행 ${skipped.length}건: ${skipped.slice(0,6).map(escapeHtml).join(" / ")}${skipped.length>6?" 외":""}`;
   }
@@ -870,36 +939,59 @@ function importCsvText(text){
 async function handleCsvFile(file,input){
   if(!file)return;
   try{
-    const text=await file.text();
-    importCsvText(text);
+    importCsvText(await file.text());
   }catch(err){
     showImportResult(`CSV 가져오기 실패: ${escapeHtml(err.message||"파일 형식을 확인해 주세요.")}`,"error");
   }finally{
     input.value="";
   }
 }
-if($("#csvImportInput")) if($("#csvImportInput")) $("#csvImportInput").onchange=e=>handleCsvFile(e.target.files[0],e.target);
-if($("#csvImportTopInput")) function download(name,text,type){
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+if($("#csvImportInput")) $("#csvImportInput").onchange=e=>handleCsvFile(e.target.files[0],e.target);
+
+function download(name,text,type){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text],{type}));
+  a.download=name;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 $("#backupBtn").onclick=()=>download(
   `무지개반사_예산백업_${new Date().toISOString().slice(0,10)}.json`,
-  JSON.stringify({version:17,transactions,stationeryTransactions,evidenceDocs},null,2),"application/json"
+  JSON.stringify({version:18,transactions,stationeryTransactions,evidenceDocs},null,2),"application/json"
 );
 $("#csvBtn").onclick=()=>{
-  const rows=[["구분","날짜","예산항목","세부항목/품목","사용처/수량","금액","결제수단","증빙상태","증빙체크","메모"]];
-  [...transactions].sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>rows.push([
-    "사업비",t.date,catById(t.category)?.name||"",t.subCategory,t.merchant,t.amount,t.payment||"전용카드",t.evidence==="done"?"완료":"필요",
-    `${(evidenceDocs[t.id]||[]).filter(d=>d.checked).length}/${(evidenceDocs[t.id]||[]).length}`,t.memo||""
-  ]));
-  [...stationeryTransactions].sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>rows.push([
-    "여수문구사",t.date,"사무관리비","소모성물품구입비",
-      `${t.item}${t.qty?` / ${t.qty}`:""}${(t.purchaseType||"store")==="link"?` / 인터넷대행 / 수수료 ${Number(t.fee||0).toLocaleString("ko-KR")}원 / 택배 ${Number(t.shipping||0).toLocaleString("ko-KR")}원`:""}`,
-      Number(t.total ?? t.amount ?? 0),"여수문구사",t.evidence==="done"?"완료":"필요","",
-      `${t.memo||""}${t.link?`${t.memo?" / ":""}링크: ${t.link}`:""}`
-  ]));
+  const rows=[[
+    "구분","내역ID","날짜","예산항목","세부항목","사용처","품목","수량","금액","상품금액",
+    "결제수단","증빙상태","구매유형","인터넷링크","수수료방식","수수료율","수수료금액","택배비",
+    "증빙서류명","체크여부","필수여부","사용자추가","메모"
+  ]];
+
+  [...transactions].sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{
+    rows.push([
+      "사업비",t.id,t.date,catById(t.category)?.name||"",t.subCategory,t.merchant,"","",t.amount,"",
+      t.payment||"전용카드",t.evidence==="done"?"완료":"필요","","","","","","","","","","",t.memo||""
+    ]);
+
+    (evidenceDocs[t.id]||[]).forEach(d=>{
+      rows.push([
+        "증빙서류",t.id,"","","","","","","","","","","","","","","","",
+        d.name,d.checked?"체크":"미체크",d.required===false?"조건부":"필수",d.custom?"예":"아니오",""
+      ]);
+    });
+  });
+
+  [...stationeryTransactions].sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{
+    rows.push([
+      "여수문구사",t.id,t.date,"사무관리비","소모성물품구입비","",t.item,t.qty||"",
+      Number(t.total ?? t.amount ?? 0),Number(t.amount||0),"여수문구사",
+      t.evidence==="done"?"완료":"필요",(t.purchaseType||"store")==="link"?"인터넷 대행구매":"여수문구사 직접구매",
+      t.link||"",t.feeMode||"",Number(t.feeRate||0),Number(t.fee||0),Number(t.shipping||0),
+      "","","","",t.memo||""
+    ]);
+  });
+
   const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
-  download(`무지개반사_집행내역_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
+  download(`무지개반사_통합백업_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
 };
 $("#restoreInput").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;

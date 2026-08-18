@@ -7,12 +7,12 @@
   <title>무지개반사 예산관리</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.svg"/>
-  <link rel="stylesheet" href="style.css?v=17"/>
+  <link rel="stylesheet" href="style.css?v=18"/>
 </head>
 <body>
   <header class="top">
     <div>
-      <div class="eyebrow">2026 전남형 청년공동체 · <b>v17</b></div>
+      <div class="eyebrow">2026 전남형 청년공동체 · <b>v18</b></div>
       <h1>무지개반사 예산관리</h1>
     </div>
     <button id="backupBtn" class="ghost">백업</button>
@@ -147,12 +147,12 @@
     <section class="section utility">
       <h2>데이터 관리</h2>
       <div class="utility-grid four">
-        <label class="ghost file-label">CSV 가져오기<input id="csvImportInput" type="file" accept=".csv,text/csv"/></label>
-        <button id="csvBtn" class="ghost">CSV 내보내기</button>
+        <label class="ghost file-label">통합 CSV 가져오기<input id="csvImportInput" type="file" accept=".csv,text/csv"/></label>
+        <button id="csvBtn" class="ghost">통합 CSV 내보내기</button>
         <label class="ghost file-label">백업 복원<input id="restoreInput" type="file" accept=".json,application/json"/></label>
         <button id="resetBtn" class="danger-ghost">전체 초기화</button>
       </div>
-      <p class="note">사업비 내역과 여수문구사 상세 내역을 함께 백업합니다. 여수문구사 상세 내역은 사업비 집행액에 중복 합산되지 않습니다.</p>
+      <p class="note">CSV 하나로 사업비 내역, 여수문구사 사용내역, 증빙서류 체크상태까지 함께 내보내고 다시 가져올 수 있습니다.</p>
     </section>
     </div>
 
@@ -262,6 +262,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=17"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>
