@@ -7,303 +7,323 @@
   <title>무지개반사 예산관리</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.svg"/>
-  <link rel="stylesheet" href="style.css?v=22"/>
+  <link rel="stylesheet" href="style.css?v=2.2"/>
 </head>
 <body>
   <header class="top">
     <div>
-      <div class="eyebrow">2026 전남형 청년공동체 · <b>v22</b></div>
+      <div class="eyebrow">2026 전남형 청년공동체 · <b>v2.2</b></div>
       <h1>무지개반사 예산관리</h1>
     </div>
-    <button id="dataManageBtn" class="ghost">데이터 관리</button>
   </header>
 
   <main>
+    <!-- 홈 -->
+    <section id="homePage" class="page active">
+      <section class="todo-panel" aria-label="할 일">
+        <div id="todoList" class="todo-list"></div>
+        <div class="todo-add-row">
+          <input id="todoInput" type="text" maxlength="80" placeholder="할 일을 한 줄로 입력"/>
+          <button id="todoAddBtn" class="primary">추가</button>
+        </div>
+      </section>
 
-    <section class="todo-panel" aria-label="할 일">
-      <div id="todoList" class="todo-list"></div>
-      <div class="todo-add-row">
-        <input id="todoInput" type="text" maxlength="80" placeholder="할 일을 한 줄로 입력"/>
-        <button id="todoAddBtn" class="primary">추가</button>
-      </div>
-      <p id="todoLimitMsg" class="todo-limit hidden">할 일은 최대 3개까지 등록할 수 있어요.</p>
-    </section>
+      <section class="summary-grid">
+        <article class="card hero">
+          <span>총 사업비</span>
+          <strong id="totalBudget">0원</strong>
+          <small>지방비 기준</small>
+        </article>
+        <article class="card">
+          <span>집행액</span>
+          <strong id="spentTotal">0원</strong>
+          <small id="spentRate">0% 집행</small>
+        </article>
+        <article class="card">
+          <span>남은 예산</span>
+          <strong id="remainingTotal">0원</strong>
+          <small id="remainingRate">100% 남음</small>
+        </article>
+        <article class="card">
+          <span>여수문구사 집행액</span>
+          <strong id="stationerySpentTop">0원</strong>
+          <small>여수문구사 상세 내역 합계</small>
+        </article>
+      </section>
 
-    <section class="summary-grid">
-      <article class="card hero">
-        <span>총 사업비</span>
-        <strong id="totalBudget">0원</strong>
-        <small>지방비 기준</small>
-      </article>
-      <article class="card">
-        <span>집행액</span>
-        <strong id="spentTotal">0원</strong>
-        <small id="spentRate">0% 집행</small>
-      </article>
-      <article class="card">
-        <span>남은 예산</span>
-        <strong id="remainingTotal">0원</strong>
-        <small id="remainingRate">100% 남음</small>
-      </article>
-      <article class="card">
-        <span>여수문구사 집행액</span>
-        <strong id="stationerySpentTop">0원</strong>
-        <small id="stationeryTopCaption">총 900,000원 계획</small>
-      </article>
-    </section>
-
-    <nav class="main-tabs" aria-label="예산 관리 탭">
-      <button class="main-tab active" data-tab="budget">사업비 예산</button>
-      <button class="main-tab" data-tab="stationery">여수문구사</button>
-      <button class="main-tab" data-tab="evidence">증빙서류</button>
-    </nav>
-
-    <div id="budgetTab" class="tab-panel active">
       <section class="section">
         <div class="section-head">
           <div>
             <h2>예산 항목별 현황</h2>
-            <p>항목을 누르면 해당 내역만 볼 수 있어요.</p>
+            <p>세부 항목을 누르면 해당 사업비 내역으로 이동해요.</p>
           </div>
-          <button id="showAllBtn" class="ghost small">전체보기</button>
         </div>
-        <div id="budgetCards" class="budget-list"></div>
+        <div id="budgetOverview" class="budget-overview"></div>
       </section>
+    </section>
 
-      <section class="section budget-transactions-section" id="budgetTransactionsSection">
-        <div class="section-head tx-section-head">
+    <!-- 사업비 -->
+    <section id="budgetPage" class="page">
+      <section class="section page-section">
+        <div class="section-head">
           <div>
-            <h2>집행 내역</h2>
-            <p id="listCaption">전체 내역</p>
+            <h2>사업비 집행 내역</h2>
+            <p id="budgetListCaption">전체 내역</p>
           </div>
-          <div class="head-actions">
-            <button id="addBtn" class="primary">+ 내역 추가</button>
-          </div>
+          <button id="addTxBtn" class="primary">+ 내역 추가</button>
         </div>
 
         <div class="filters">
           <select id="filterCategory"><option value="">전체 항목</option></select>
+          <select id="filterSubCategory"><option value="">전체 세부항목</option></select>
           <select id="filterEvidence">
             <option value="">증빙 전체</option>
-            <option value="done">증빙 완료</option>
             <option value="todo">증빙 필요</option>
+            <option value="done">증빙 완료</option>
           </select>
         </div>
 
         <div id="txList" class="tx-list"></div>
-        <div id="emptyState" class="empty">아직 등록된 집행 내역이 없어요.</div>
+        <div id="txEmpty" class="empty">등록된 사업비 집행 내역이 없어요.</div>
       </section>
-    </div>
+    </section>
 
-    <div id="stationeryTab" class="tab-panel">
-      <section class="section">
+    <!-- 문구사 -->
+    <section id="stationeryPage" class="page">
+      <section class="section page-section">
         <div class="section-head">
           <div>
             <h2>여수문구사 사용 내역</h2>
-            <p id="stationeryListCaption">전체 내역</p>
+            <p id="stationeryCaption">전체 내역</p>
           </div>
           <button id="addStationeryBtn" class="primary">+ 내역 추가</button>
         </div>
-        <div class="filters">
+
+        <div class="filters one">
           <select id="stationeryMonthFilter">
             <option value="">전체 월</option>
             <option value="2026-08">2026년 8월</option>
             <option value="2026-09">2026년 9월</option>
             <option value="2026-10">2026년 10월</option>
           </select>
-          </div>
+        </div>
+
         <div id="stationeryList" class="tx-list"></div>
-        <div id="stationeryEmpty" class="empty">아직 등록된 여수문구사 사용 내역이 없어요.</div>
+        <div id="stationeryEmpty" class="empty">등록된 여수문구사 내역이 없어요.</div>
       </section>
-    </div>
+    </section>
 
+    <!-- 회의 -->
+    <section id="meetingPage" class="page">
+      <section class="meeting-todo-panel">
+        <div id="meetingTodoList" class="todo-list"></div>
+        <div class="todo-add-row">
+          <input id="meetingTodoInput" type="text" maxlength="120" placeholder="회의 관련 할 일을 입력"/>
+          <button id="meetingTodoAddBtn" class="primary">추가</button>
+        </div>
+      </section>
 
-    <div id="evidenceTab" class="tab-panel">
-      <section class="section">
+      <section class="section page-section">
         <div class="section-head">
           <div>
-            <h2>증빙서류 체크</h2>
-            <p>집행 건을 누르면 필요한 증빙서류와 체크박스가 열립니다. 필수 서류를 모두 체크하면 자동으로 ‘증빙 완료’로 바뀝니다.</p>
+            <h2>회의 기록</h2>
+            <p>회의 날짜와 사진·회의록 작성 여부를 관리해요.</p>
+          </div>
+          <button id="addMeetingBtn" class="primary">+ 회의 추가</button>
+        </div>
+        <div id="meetingList" class="meeting-list"></div>
+        <div id="meetingEmpty" class="empty">등록된 회의가 없어요.</div>
+      </section>
+    </section>
+
+    <!-- 설정 -->
+    <section id="settingsPage" class="page">
+      <section class="section page-section">
+        <div class="section-head">
+          <div>
+            <h2>설정</h2>
+            <p>데이터 백업·복원과 통합 CSV를 관리해요.</p>
           </div>
         </div>
-        <div class="filters">
-          <select id="evidenceTxFilter">
-            <option value="">전체 집행 건</option>
-          </select>
-          <select id="evidenceStatusFilter">
-            <option value="">전체 상태</option>
-            <option value="todo">증빙 필요</option>
-            <option value="done">증빙 완료</option>
-          </select>
-        </div>
-        <div id="evidenceList" class="evidence-list"></div>
-        <div id="evidenceEmpty" class="empty">표시할 집행 내역이 없어요.</div>
-      </section>
-</div>
 
+        <div class="settings-list">
+          <section class="setting-card">
+            <div>
+              <strong>통합 CSV 가져오기</strong>
+              <span>사업비·증빙서류·여수문구사·회의를 한 번에 불러와요.</span>
+            </div>
+            <label class="primary file-label">CSV 선택<input id="csvImportInput" type="file" accept=".csv,text/csv"/></label>
+          </section>
+
+          <section class="setting-card">
+            <div>
+              <strong>통합 CSV 내보내기</strong>
+              <span>현재 데이터를 하나의 CSV로 저장해요.</span>
+            </div>
+            <button id="csvExportBtn" class="ghost">CSV 내보내기</button>
+          </section>
+
+          <section class="setting-card">
+            <div>
+              <strong>전체 백업</strong>
+              <span>할 일까지 포함한 모든 데이터를 JSON으로 저장해요.</span>
+            </div>
+            <button id="backupBtn" class="ghost">JSON 백업</button>
+          </section>
+
+          <section class="setting-card">
+            <div>
+              <strong>백업 복원</strong>
+              <span>이전에 저장한 JSON 백업을 복원해요.</span>
+            </div>
+            <label class="ghost file-label">JSON 선택<input id="restoreInput" type="file" accept=".json,application/json"/></label>
+          </section>
+        </div>
+
+        <div id="csvImportResult" class="import-result hidden"></div>
+
+        <section class="danger-zone">
+          <div>
+            <strong>전체 초기화</strong>
+            <span>사업비·증빙·문구사·회의·할 일을 모두 삭제합니다.</span>
+          </div>
+          <button id="resetBtn" class="danger-ghost">전체 초기화</button>
+        </section>
+      </section>
+    </section>
   </main>
 
+  <nav class="bottom-nav" aria-label="하단 메뉴">
+    <button class="bottom-tab active" data-page="home">
+      <span class="nav-icon">⌂</span><span>홈</span>
+    </button>
+    <button class="bottom-tab" data-page="budget">
+      <span class="nav-icon">₩</span><span>사업비</span>
+    </button>
+    <button class="bottom-tab" data-page="stationery">
+      <span class="nav-icon">✎</span><span>문구사</span>
+    </button>
+    <button class="bottom-tab" data-page="meeting">
+      <span class="nav-icon">☷</span><span>회의</span>
+    </button>
+    <button class="bottom-tab" data-page="settings">
+      <span class="nav-icon">⚙</span><span>설정</span>
+    </button>
+  </nav>
 
-  <dialog id="dataManageDialog" class="data-dialog">
-    <div class="data-dialog-wrap">
-      <div class="dialog-head">
-        <div>
-          <h2>데이터 관리</h2>
-          <p>백업·복원과 통합 CSV 관리를 여기서 할 수 있어요.</p>
-        </div>
-        <button type="button" id="closeDataManageDialog" class="icon-btn">✕</button>
-      </div>
-
-      <div class="data-actions">
-        <section class="data-action-card">
-          <div>
-            <strong>통합 CSV 가져오기</strong>
-            <span>사업비·여수문구사·증빙 체크상태를 한 번에 불러와요.</span>
-          </div>
-          <label class="primary file-label">
-            CSV 선택
-            <input id="csvImportInput" type="file" accept=".csv,text/csv"/>
-          </label>
-        </section>
-
-        <section class="data-action-card">
-          <div>
-            <strong>통합 CSV 내보내기</strong>
-            <span>현재 데이터를 하나의 CSV 파일로 저장해요.</span>
-          </div>
-          <button id="csvBtn" class="ghost">CSV 내보내기</button>
-        </section>
-
-        <section class="data-action-card">
-          <div>
-            <strong>전체 백업</strong>
-            <span>앱의 전체 데이터를 JSON 파일로 백업해요.</span>
-          </div>
-          <button id="backupBtn" class="ghost">JSON 백업</button>
-        </section>
-
-        <section class="data-action-card">
-          <div>
-            <strong>백업 복원</strong>
-            <span>이전에 저장한 JSON 백업 파일로 복원해요.</span>
-          </div>
-          <label class="ghost file-label">
-            JSON 선택
-            <input id="restoreInput" type="file" accept=".json,application/json"/>
-          </label>
-        </section>
-      </div>
-
-      <div id="csvImportResult" class="import-result hidden"></div>
-
-      <div class="data-danger-zone">
-        <div>
-          <strong>전체 초기화</strong>
-          <span>사업비·여수문구사·증빙 데이터를 모두 삭제합니다.</span>
-        </div>
-        <button id="resetBtn" class="danger-ghost">전체 초기화</button>
-      </div>
-    </div>
-  </dialog>
-
+  <!-- 사업비 추가/수정 + 증빙서류 통합 -->
   <dialog id="txDialog">
     <form id="txForm" method="dialog">
       <div class="dialog-head">
-        <h2 id="dialogTitle">내역 추가</h2>
-        <button type="button" id="closeDialog" class="icon-btn">✕</button>
+        <h2 id="txDialogTitle">사업비 내역 추가</h2>
+        <button type="button" id="closeTxDialog" class="icon-btn">✕</button>
       </div>
-      <input type="hidden" id="editId"/>
-      <label>날짜<input id="date" type="date" required/></label>
-      <label>예산 항목<select id="category" required></select></label>
-      <label>세부 항목<select id="subCategory" required></select></label>
-      <label>사용처 / 내용<input id="merchant" type="text" placeholder="예: 서울해장국 / 교육 식비" required/></label>
-      <label>금액<input id="amount" type="number" min="0" step="1" inputmode="numeric" placeholder="0" required/></label>
-      <label>결제수단
-        <select id="payment">
-          <option>전용카드</option>
-          <option>계좌이체</option>
-          <option>기타</option>
-        </select>
-      </label>
-      <label>증빙상태
-        <select id="evidence">
-          <option value="done">완료</option>
-          <option value="todo">필요</option>
-        </select>
-      </label>
-      <label>메모<textarea id="memo" rows="3" placeholder="증빙번호, 행사명, 비고 등"></textarea></label>
-      <div class="dialog-actions">
-        <button type="button" id="deleteBtn" class="danger hidden">삭제</button>
+      <div class="dialog-scroll">
+        <input type="hidden" id="editId"/>
+        <label>날짜<input id="date" type="date" required/></label>
+        <label>예산 항목<select id="category" required></select></label>
+        <label>세부 항목<select id="subCategory" required></select></label>
+        <label>사용처 / 내용<input id="merchant" type="text" placeholder="예: 서울해장국 / 교육 식비" required/></label>
+        <label>금액<input id="amount" type="number" min="0" step="1" inputmode="numeric" required/></label>
+        <label>결제수단
+          <select id="payment">
+            <option>전용카드</option>
+            <option>계좌이체</option>
+            <option>기타</option>
+          </select>
+        </label>
+        <label>메모<textarea id="memo" rows="2"></textarea></label>
+
+        <section class="evidence-editor">
+          <div class="evidence-editor-head">
+            <div>
+              <strong>증빙서류</strong>
+              <span id="evidenceRuleText"></span>
+            </div>
+            <span id="evidenceStateBadge" class="badge todo">증빙 필요</span>
+          </div>
+          <div id="evidenceChecklist" class="evidence-checklist"></div>
+          <div class="add-doc-row">
+            <input id="newEvidenceDoc" type="text" placeholder="필요 서류 추가 (예: 견적서)"/>
+            <button type="button" id="addEvidenceDocBtn" class="ghost">추가</button>
+          </div>
+          <p class="note">필수 서류를 모두 체크하면 자동으로 증빙 완료 처리됩니다.</p>
+        </section>
+      </div>
+      <div class="dialog-actions sticky">
+        <button type="button" id="deleteTxBtn" class="danger hidden">삭제</button>
         <button type="submit" class="primary grow">저장</button>
       </div>
     </form>
   </dialog>
 
+  <!-- 문구사 -->
   <dialog id="stationeryDialog">
     <form id="stationeryForm" method="dialog">
       <div class="dialog-head">
-        <h2 id="stationeryDialogTitle">여수문구사 사용 내역 추가</h2>
+        <h2 id="stationeryDialogTitle">여수문구사 내역 추가</h2>
         <button type="button" id="closeStationeryDialog" class="icon-btn">✕</button>
       </div>
-      <input type="hidden" id="stationeryEditId"/>
-      <label>날짜<input id="stationeryDate" type="date" required/></label>
-      <label>구매 유형
-        <select id="stationeryPurchaseType">
-          <option value="store">여수문구사 직접구매</option>
-          <option value="link">인터넷 링크 대행구매</option>
-        </select>
-      </label>
-      <label>품목 / 내용<input id="stationeryItem" type="text" placeholder="예: A4용지, 네임펜, 색지" required/></label>
-      <label id="stationeryLinkLabel" class="conditional-field hidden">인터넷 링크<input id="stationeryLink" type="url" placeholder="https://..."/></label>
-      <label>상품금액<input id="stationeryAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="0" required/></label>
-      <div id="stationeryFeeFields" class="stationery-fee-fields hidden">
-        <label>수수료 방식
-          <select id="stationeryFeeMode">
-            <option value="percent">퍼센트</option>
-            <option value="fixed">직접 입력</option>
-            <option value="none">없음</option>
+      <div class="dialog-scroll">
+        <input type="hidden" id="stationeryEditId"/>
+        <label>날짜<input id="stationeryDate" type="date" required/></label>
+        <label>구매 유형
+          <select id="stationeryPurchaseType">
+            <option value="store">여수문구사 직접구매</option>
+            <option value="link">인터넷 링크 대행구매</option>
           </select>
         </label>
-        <label id="stationeryFeeRateLabel">수수료율 (%)<input id="stationeryFeeRate" type="number" min="0" step="0.1" inputmode="decimal" value="20"/></label>
-        <label id="stationeryFeeFixedLabel" class="hidden">수수료 금액<input id="stationeryFeeFixed" type="number" min="0" step="1" inputmode="numeric" value="0"/></label>
-        <label>택배비<input id="stationeryShipping" type="number" min="0" step="1" inputmode="numeric" value="0"/></label>
-        <div class="stationery-calc-card">
-          <span>수수료</span><strong id="stationeryFeePreview">0원</strong>
-          <span>총 지출액</span><strong id="stationeryTotalPreview">0원</strong>
+        <label>품목 / 내용<input id="stationeryItem" type="text" required/></label>
+        <label id="stationeryLinkLabel" class="hidden">인터넷 링크<input id="stationeryLink" type="url" placeholder="https://..."/></label>
+        <label>상품금액<input id="stationeryAmount" type="number" min="0" step="1" inputmode="numeric" required/></label>
+        <div id="stationeryFeeFields" class="fee-fields hidden">
+          <label>수수료 방식
+            <select id="stationeryFeeMode">
+              <option value="percent">퍼센트</option>
+              <option value="fixed">직접 입력</option>
+              <option value="none">없음</option>
+            </select>
+          </label>
+          <label id="stationeryFeeRateLabel">수수료율 (%)<input id="stationeryFeeRate" type="number" min="0" step="0.1" value="20"/></label>
+          <label id="stationeryFeeFixedLabel" class="hidden">수수료 금액<input id="stationeryFeeFixed" type="number" min="0" step="1" value="0"/></label>
+          <label>택배비<input id="stationeryShipping" type="number" min="0" step="1" value="0"/></label>
+          <div class="calc-card">
+            <span>수수료</span><strong id="stationeryFeePreview">0원</strong>
+            <span>총 지출액</span><strong id="stationeryTotalPreview">0원</strong>
+          </div>
         </div>
+        <label>수량<input id="stationeryQty" type="text"/></label>
+        <label>메모<textarea id="stationeryMemo" rows="2"></textarea></label>
       </div>
-      <label>수량<input id="stationeryQty" type="text" placeholder="예: 2박스 / 5개"/></label>
-      <label>메모<textarea id="stationeryMemo" rows="3" placeholder="사용 목적, 영수증 메모 등"></textarea></label>
-      <div class="dialog-actions">
+      <div class="dialog-actions sticky">
         <button type="button" id="deleteStationeryBtn" class="danger hidden">삭제</button>
         <button type="submit" class="primary grow">저장</button>
       </div>
     </form>
   </dialog>
 
-
-  <dialog id="evidenceDialog">
-    <form id="evidenceForm" method="dialog">
+  <!-- 회의 -->
+  <dialog id="meetingDialog">
+    <form id="meetingForm" method="dialog">
       <div class="dialog-head">
-        <h2 id="evidenceDialogTitle">증빙서류 관리</h2>
-        <button type="button" id="closeEvidenceDialog" class="icon-btn">✕</button>
+        <h2 id="meetingDialogTitle">회의 추가</h2>
+        <button type="button" id="closeMeetingDialog" class="icon-btn">✕</button>
       </div>
-      <input type="hidden" id="evidenceTxId"/>
-      <div id="evidenceTxInfo" class="evidence-tx-info"></div>
-      <div id="evidenceRuleInfo" class="evidence-rule-info"></div>
-      <div id="evidenceChecklist" class="evidence-checklist"></div>
-      <div class="add-doc-row">
-        <input id="newEvidenceDoc" type="text" placeholder="필요 서류 추가 (예: 견적서)"/>
-        <button type="button" id="addEvidenceDocBtn" class="ghost">추가</button>
+      <div class="dialog-scroll">
+        <input type="hidden" id="meetingEditId"/>
+        <label>회의 날짜<input id="meetingDate" type="date" required/></label>
+        <label>회의 제목 / 내용<input id="meetingTitle" type="text" placeholder="예: 8월 활동 준비회의" required/></label>
+        <label class="check-row"><input id="meetingPhoto" type="checkbox"/> 사진 정리 완료</label>
+        <label class="check-row"><input id="meetingMinutes" type="checkbox"/> 회의록 작성 완료</label>
+        <label>메모<textarea id="meetingMemo" rows="3"></textarea></label>
       </div>
-      <p class="note">필수 서류를 모두 체크하면 자동으로 증빙 완료 처리됩니다. 조건부 서류는 해당되는 경우에만 확인하세요.</p>
-      <div class="dialog-actions">
-        <button type="button" id="resetEvidenceBtn" class="danger-ghost">기본 목록으로</button>
-        <button type="button" id="saveEvidenceBtn" class="primary grow">저장</button>
+      <div class="dialog-actions sticky">
+        <button type="button" id="deleteMeetingBtn" class="danger hidden">삭제</button>
+        <button type="submit" class="primary grow">저장</button>
       </div>
     </form>
   </dialog>
 
-  <script src="app.js?v=22"></script>
+  <script src="app.js?v=2.2"></script>
 </body>
 </html>

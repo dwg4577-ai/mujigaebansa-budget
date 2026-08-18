@@ -1,12 +1,11 @@
-
 const BUDGETS = [
   { id:"event", name:"행사운영비", budget:2600000, subs:[
-      {name:"플랜카드 제작", budget:100000},
-      {name:"행사운영비(재료비)", budget:2500000}
+    {name:"플랜카드 제작", budget:100000},
+    {name:"행사운영비(재료비)", budget:2500000}
   ]},
   { id:"office", name:"사무관리비", budget:1500000, subs:[
-      {name:"소모성물품구입비", budget:900000},
-      {name:"식비/다과비", budget:600000}
+    {name:"소모성물품구입비", budget:900000},
+    {name:"식비/다과비", budget:600000}
   ]},
   { id:"rent", name:"임차료", budget:400000, subs:[{name:"임차료", budget:400000}] },
   { id:"allowance", name:"운영수당", budget:1500000, subs:[{name:"자문료", budget:1500000}] }
@@ -16,1054 +15,432 @@ const KEY="mujigaebansa_budget_transactions_v1";
 const ST_KEY="mujigaebansa_stationery_transactions_v1";
 const EVIDENCE_KEY="mujigaebansa_evidence_docs_v1";
 const TODO_KEY="mujigaebansa_todos_v1";
-let transactions = JSON.parse(localStorage.getItem(KEY)||"[]");
-let stationeryTransactions = JSON.parse(localStorage.getItem(ST_KEY)||"[]");
-let evidenceDocs = JSON.parse(localStorage.getItem(EVIDENCE_KEY)||"{}");
-let todos = JSON.parse(localStorage.getItem(TODO_KEY)||"[]");
+const MEETING_KEY="mujigaebansa_meetings_v1";
+const MEETING_TODO_KEY="mujigaebansa_meeting_todos_v1";
+
+let transactions=JSON.parse(localStorage.getItem(KEY)||"[]");
+let stationeryTransactions=JSON.parse(localStorage.getItem(ST_KEY)||"[]");
+let evidenceDocs=JSON.parse(localStorage.getItem(EVIDENCE_KEY)||"{}");
+let todos=JSON.parse(localStorage.getItem(TODO_KEY)||"[]");
+let meetings=JSON.parse(localStorage.getItem(MEETING_KEY)||"[]");
+let meetingTodos=JSON.parse(localStorage.getItem(MEETING_TODO_KEY)||"[]");
 
 const $=s=>document.querySelector(s);
 const fmt=n=>Number(n||0).toLocaleString("ko-KR")+"원";
+const catById=id=>BUDGETS.find(x=>x.id===id);
+const monthKey=d=>String(d||"").slice(0,7);
+const escapeHtml=v=>String(v||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 const save=()=>localStorage.setItem(KEY,JSON.stringify(transactions));
 const saveStationery=()=>localStorage.setItem(ST_KEY,JSON.stringify(stationeryTransactions));
 const saveEvidence=()=>localStorage.setItem(EVIDENCE_KEY,JSON.stringify(evidenceDocs));
 const saveTodos=()=>localStorage.setItem(TODO_KEY,JSON.stringify(todos));
-const catById=id=>BUDGETS.find(x=>x.id===id);
-const monthKey=date=>String(date||"").slice(0,7);
-const escapeHtml=v=>String(v||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const saveMeetings=()=>localStorage.setItem(MEETING_KEY,JSON.stringify(meetings));
+const saveMeetingTodos=()=>localStorage.setItem(MEETING_TODO_KEY,JSON.stringify(meetingTodos));
 
+function uid(){return crypto.randomUUID?crypto.randomUUID():"id-"+Date.now()+"-"+Math.random().toString(16).slice(2)}
+function openDialog(d){if(typeof d.showModal==="function")d.showModal();else d.setAttribute("open","")}
+function closeDialog(d){if(typeof d.close==="function")d.close();else d.removeAttribute("open")}
 
-function renderTodos(){
-  const list=$("#todoList");
-  list.innerHTML=todos.map(t=>`
-    <div class="todo-item ${t.done?'done':''}" data-id="${t.id}">
-      <input type="checkbox" ${t.done?'checked':''} aria-label="완료 체크">
-      <div class="todo-text">${escapeHtml(t.text)}</div>
-      <button type="button" class="todo-delete" aria-label="삭제">✕</button>
-    </div>
-  `).join("");
-
-  document.querySelectorAll(".todo-item").forEach(el=>{
-    const id=el.dataset.id;
-    el.querySelector('input[type="checkbox"]').onchange=e=>{
-      const t=todos.find(x=>x.id===id);
-      if(!t)return;
-      t.done=e.target.checked;
-      saveTodos();
-      renderTodos();
-    };
-    el.querySelector(".todo-delete").onclick=()=>{
-      todos=todos.filter(x=>x.id!==id);
-      saveTodos();
-      renderTodos();
-    };
-  });
-
-  const full=todos.length>=3;
-  $("#todoInput").disabled=full;
-  $("#todoAddBtn").disabled=full;
-  $("#todoLimitMsg").classList.toggle("hidden",!full);
-  $(".todo-add-row").classList.toggle("disabled",full);
+function switchPage(name){
+  document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id===name+"Page"));
+  document.querySelectorAll(".bottom-tab").forEach(b=>b.classList.toggle("active",b.dataset.page===name));
+  window.scrollTo({top:0,behavior:"smooth"});
 }
-function addTodo(){
-  const text=$("#todoInput").value.trim();
-  if(!text || todos.length>=3)return;
-  todos.push({id:crypto.randomUUID(),text,done:false});
-  saveTodos();
-  $("#todoInput").value="";
-  renderTodos();
-}
-$("#todoAddBtn").onclick=addTodo;
-$("#todoInput").addEventListener("keydown",e=>{
-  if(e.key==="Enter"){
-    e.preventDefault();
-    addTodo();
-  }
-});
+document.querySelectorAll(".bottom-tab").forEach(b=>b.onclick=()=>switchPage(b.dataset.page));
 
 function migrateRentSubs(){
   let changed=false;
   transactions=transactions.map(t=>{
     if(t.category==="rent" && ["프로그램 공간 임대료","전시실 임대료"].includes(t.subCategory)){
-      changed=true;
-      return {...t,subCategory:"임차료"};
+      changed=true;return {...t,subCategory:"임차료"};
     }
     return t;
-  });
-  if(changed) save();
-}
-
-function evidenceTemplateForTransaction(t){
-  const cardReceipt = {name:"지원금 전용 체크카드 영수증", checked:false, required:true, custom:false};
-  const transferReceipt = {name:"계좌이체 확인증", checked:false, required:true, custom:false};
-
-  // 홍보비: 현재 앱에서는 '플랜카드 제작'으로 사용
-  if(t.category==="event" && t.subCategory==="플랜카드 제작"){
-    const docs = [
-      t.payment==="계좌이체" ? transferReceipt : cardReceipt,
-      {name:"견적서",checked:false,required:true,custom:false},
-      {name:"증빙사진",checked:false,required:true,custom:false}
-    ];
-    if(t.payment==="계좌이체"){
-      docs.push(
-        {name:"세금계산서",checked:false,required:true,custom:false},
-        {name:"사업자등록증",checked:false,required:true,custom:false}
-      );
-    }
-    return {
-      title:"홍보비",
-      rule:"현수막·인쇄물·영상물 등 제작",
-      docs
-    };
-  }
-
-  // 소모성물품구입비
-  if(t.category==="office" && t.subCategory==="소모성물품구입비"){
-    return {
-      title:"소모성물품구입비",
-      rule:"지원금 체크카드 결제 · 영수증에 품목명이 없으면 거래명세서 또는 견적서 필요",
-      docs:[
-        cardReceipt,
-        {name:"거래명세표 또는 견적서",checked:false,required:true,custom:false},
-        {name:"행사(강의) 결과보고서",checked:false,required:true,custom:false},
-        {name:"참가자 서명부",checked:false,required:true,custom:false},
-        {name:"증빙사진",checked:false,required:true,custom:false},
-        {name:"비교견적서 (단일품목 20만원 이상인 경우)",checked:false,required:false,conditional:true,custom:false}
-      ]
-    };
-  }
-
-  // 임차료
-  if(t.category==="rent"){
-    const docs = [
-      t.payment==="계좌이체" ? transferReceipt : cardReceipt,
-      {name:"임차계약서",checked:false,required:true,custom:false},
-      {name:"사업자등록증",checked:false,required:true,custom:false},
-      {name:"행사(강의) 결과보고서",checked:false,required:true,custom:false},
-      {name:"활동사진",checked:false,required:true,custom:false},
-      {name:"참가자 서명부",checked:false,required:true,custom:false}
-    ];
-    if(t.payment==="계좌이체"){
-      docs.push({name:"세금계산서",checked:false,required:true,custom:false});
-    }
-    return {
-      title:"임차료",
-      rule:"장소·기자재 등 임차 · 임차계약서에 사용기간 명시",
-      docs
-    };
-  }
-
-  // 운영수당 / 자문료
-  if(t.category==="allowance"){
-    return {
-      title:"운영수당·자문료",
-      rule:"계좌이체 원칙 · 동일인/동일단체 월 125,000원 초과 지급 시 원천징수 확인 필요",
-      docs:[
-        {name:"강사등급 확인 서류",checked:false,required:true,custom:false},
-        {name:"강사/자문자 프로필",checked:false,required:true,custom:false},
-        {name:"강의·자문 자료",checked:false,required:true,custom:false},
-        {name:"강의·자문 사진",checked:false,required:true,custom:false},
-        {name:"강의확인서 또는 자문확인서 (주소 명시)",checked:false,required:true,custom:false},
-        {name:"강사/자문자 통장사본",checked:false,required:true,custom:false},
-        {name:"행사(강의) 결과보고서 (강의시간 명시)",checked:false,required:true,custom:false},
-        {name:"참가자 서명부",checked:false,required:true,custom:false},
-        {name:"계좌이체 확인증",checked:false,required:true,custom:false},
-        {name:"원천징수 납부 확인서 (월 125,000원 초과 지급 시)",checked:false,required:false,conditional:true,custom:false}
-      ]
-    };
-  }
-
-  // 행사운영비(재료비)
-  if(t.category==="event" && t.subCategory==="행사운영비(재료비)"){
-    return {
-      title:"행사운영비",
-      rule:"행사진행에 필요한 각종 물품·재료비 · 지원금 체크카드 결제",
-      docs:[
-        cardReceipt,
-        {name:"구입물품 사진",checked:false,required:true,custom:false},
-        {name:"활동사진",checked:false,required:true,custom:false},
-        {name:"행사결과보고서",checked:false,required:true,custom:false},
-        {name:"참가자 서명부",checked:false,required:true,custom:false}
-      ]
-    };
-  }
-
-  // 식비/다과비
-  if(t.category==="office" && t.subCategory==="식비/다과비"){
-    return {
-      title:"식비·다과비",
-      rule:"지원금 체크카드 결제 · 식비 9,000원, 다과 3,000원(1인 1식) · 주류 불가",
-      docs:[
-        cardReceipt,
-        {name:"참가자 서명부",checked:false,required:true,custom:false},
-        {name:"행사(강의) 결과보고서 또는 회의록",checked:false,required:true,custom:false}
-      ]
-    };
-  }
-
-  return {
-    title:"기타 집행",
-    rule:"등록된 예산 항목에 맞는 증빙을 확인하세요.",
-    docs:[
-      t.payment==="계좌이체" ? transferReceipt : cardReceipt
-    ]
-  };
-}
-
-function defaultEvidenceDocs(t){
-  return evidenceTemplateForTransaction(t).docs;
-}
-
-function mergeEvidenceTemplate(t){
-  const template=evidenceTemplateForTransaction(t);
-  const old=Array.isArray(evidenceDocs[t.id])?evidenceDocs[t.id]:[];
-  const oldByName=new Map(old.map(d=>[d.name,d]));
-  const merged=template.docs.map(d=>{
-    const prev=oldByName.get(d.name);
-    return prev ? {...d,checked:!!prev.checked} : {...d};
-  });
-  old.filter(d=>d.custom).forEach(d=>{
-    if(!merged.some(x=>x.name===d.name)) merged.push({...d,required:d.required!==false,custom:true});
-  });
-  evidenceDocs[t.id]=merged;
-  saveEvidence();
-}
-
-function ensureEvidenceForTransaction(t){
-  if(!Array.isArray(evidenceDocs[t.id]) || evidenceDocs[t.id].length===0){
-    evidenceDocs[t.id]=defaultEvidenceDocs(t);
-    if(t.evidence==="done"){
-      evidenceDocs[t.id].forEach(d=>{if(d.required!==false)d.checked=true;});
-    }
-    saveEvidence();
-  }else{
-    mergeEvidenceTemplate(t);
-  }
-}
-function syncEvidenceStatus(t){
-  ensureEvidenceForTransaction(t);
-  const docs=evidenceDocs[t.id]||[];
-  const requiredDocs=docs.filter(d=>d.required!==false);
-  const done=requiredDocs.length>0 && requiredDocs.every(d=>d.checked);
-  t.evidence=done?"done":"todo";
-  return done;
-}
-function syncAllEvidenceStatuses(){
-  let changed=false;
-  transactions.forEach(t=>{
-    ensureEvidenceForTransaction(t);
-    const prev=t.evidence;
-    syncEvidenceStatus(t);
-    if(prev!==t.evidence)changed=true;
   });
   if(changed)save();
 }
 
+/* 할 일 */
+function renderTodos(){
+  $("#todoList").innerHTML=todos.map(t=>`
+    <div class="todo-item ${t.done?'done':''}" data-id="${t.id}">
+      <input type="checkbox" ${t.done?'checked':''}>
+      <div class="todo-text">${escapeHtml(t.text)}</div>
+      <button class="todo-delete" type="button">✕</button>
+    </div>`).join("");
+  document.querySelectorAll(".todo-item").forEach(el=>{
+    const id=el.dataset.id;
+    el.querySelector('input').onchange=e=>{const t=todos.find(x=>x.id===id);if(t){t.done=e.target.checked;saveTodos();renderTodos()}};
+    el.querySelector('button').onclick=()=>{todos=todos.filter(x=>x.id!==id);saveTodos();renderTodos()};
+  });
+  const full=todos.length>=3;
+  $("#todoInput").disabled=full;
+  $("#todoAddBtn").disabled=full;
+  $(".todo-panel .todo-add-row").classList.toggle("hidden",full);
+}
+function addTodo(){const text=$("#todoInput").value.trim();if(!text||todos.length>=3)return;todos.push({id:uid(),text,done:false});saveTodos();$("#todoInput").value="";renderTodos()}
+$("#todoAddBtn").onclick=addTodo;
+$("#todoInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addTodo()}});
+
+
+/* 회의 탭 할 일 - 무제한 */
+function renderMeetingTodos(){
+  $("#meetingTodoList").innerHTML=meetingTodos.map(t=>`
+    <div class="todo-item ${t.done?'done':''}" data-id="${t.id}">
+      <input type="checkbox" ${t.done?'checked':''}>
+      <div class="todo-text">${escapeHtml(t.text)}</div>
+      <button class="todo-delete" type="button">✕</button>
+    </div>`).join("");
+
+  document.querySelectorAll("#meetingTodoList .todo-item").forEach(el=>{
+    const id=el.dataset.id;
+    el.querySelector('input').onchange=e=>{
+      const t=meetingTodos.find(x=>x.id===id);
+      if(!t)return;
+      t.done=e.target.checked;
+      saveMeetingTodos();
+      renderMeetingTodos();
+    };
+    el.querySelector('button').onclick=()=>{
+      meetingTodos=meetingTodos.filter(x=>x.id!==id);
+      saveMeetingTodos();
+      renderMeetingTodos();
+    };
+  });
+}
+function addMeetingTodo(){
+  const text=$("#meetingTodoInput").value.trim();
+  if(!text)return;
+  meetingTodos.push({id:uid(),text,done:false});
+  saveMeetingTodos();
+  $("#meetingTodoInput").value="";
+  renderMeetingTodos();
+}
+$("#meetingTodoAddBtn").onclick=addMeetingTodo;
+$("#meetingTodoInput").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+    addMeetingTodo();
+  }
+});
+
+/* 증빙 템플릿 */
+function evidenceTemplate(t){
+  const card={name:"지원금 전용 체크카드 영수증",checked:false,required:true,custom:false};
+  const transfer={name:"계좌이체 확인증",checked:false,required:true,custom:false};
+
+  if(t.category==="event"&&t.subCategory==="플랜카드 제작"){
+    const docs=[t.payment==="계좌이체"?transfer:card,{name:"견적서",checked:false,required:true,custom:false},{name:"증빙사진",checked:false,required:true,custom:false}];
+    if(t.payment==="계좌이체")docs.push({name:"세금계산서",checked:false,required:true,custom:false},{name:"사업자등록증",checked:false,required:true,custom:false});
+    return {rule:"홍보비 · 현수막/인쇄물 등 제작",docs};
+  }
+  if(t.category==="office"&&t.subCategory==="소모성물품구입비")return {rule:"소모성물품구입비",docs:[
+    card,{name:"거래명세표 또는 견적서",checked:false,required:true,custom:false},
+    {name:"행사(강의) 결과보고서",checked:false,required:true,custom:false},
+    {name:"참가자 서명부",checked:false,required:true,custom:false},
+    {name:"증빙사진",checked:false,required:true,custom:false},
+    {name:"비교견적서 (단일품목 20만원 이상인 경우)",checked:false,required:false,custom:false}
+  ]};
+  if(t.category==="rent"){
+    const docs=[t.payment==="계좌이체"?transfer:card,{name:"임차계약서",checked:false,required:true,custom:false},{name:"사업자등록증",checked:false,required:true,custom:false},{name:"행사(강의) 결과보고서",checked:false,required:true,custom:false},{name:"활동사진",checked:false,required:true,custom:false},{name:"참가자 서명부",checked:false,required:true,custom:false}];
+    if(t.payment==="계좌이체")docs.push({name:"세금계산서",checked:false,required:true,custom:false});
+    return {rule:"임차료 · 장소/기자재 등",docs};
+  }
+  if(t.category==="allowance")return {rule:"운영수당·자문료",docs:[
+    {name:"강사등급 확인 서류",checked:false,required:true,custom:false},
+    {name:"강사/자문자 프로필",checked:false,required:true,custom:false},
+    {name:"강의·자문 자료",checked:false,required:true,custom:false},
+    {name:"강의·자문 사진",checked:false,required:true,custom:false},
+    {name:"강의확인서 또는 자문확인서 (주소 명시)",checked:false,required:true,custom:false},
+    {name:"강사/자문자 통장사본",checked:false,required:true,custom:false},
+    {name:"행사(강의) 결과보고서 (강의시간 명시)",checked:false,required:true,custom:false},
+    {name:"참가자 서명부",checked:false,required:true,custom:false},
+    {name:"계좌이체 확인증",checked:false,required:true,custom:false},
+    {name:"원천징수 납부 확인서 (월 125,000원 초과 지급 시)",checked:false,required:false,custom:false}
+  ]};
+  if(t.category==="event"&&t.subCategory==="행사운영비(재료비)")return {rule:"행사운영비 · 물품/재료비",docs:[
+    card,{name:"구입물품 사진",checked:false,required:true,custom:false},{name:"활동사진",checked:false,required:true,custom:false},{name:"행사결과보고서",checked:false,required:true,custom:false},{name:"참가자 서명부",checked:false,required:true,custom:false}
+  ]};
+  if(t.category==="office"&&t.subCategory==="식비/다과비")return {rule:"식비·다과비",docs:[
+    card,{name:"참가자 서명부",checked:false,required:true,custom:false},{name:"행사(강의) 결과보고서 또는 회의록",checked:false,required:true,custom:false}
+  ]};
+  return {rule:"기타 집행",docs:[t.payment==="계좌이체"?transfer:card]};
+}
+function mergeEvidence(t){
+  const tpl=evidenceTemplate(t),old=evidenceDocs[t.id]||[],map=new Map(old.map(d=>[d.name,d]));
+  const merged=tpl.docs.map(d=>({...d,checked:map.has(d.name)?!!map.get(d.name).checked:d.checked}));
+  old.filter(d=>d.custom).forEach(d=>{if(!merged.some(x=>x.name===d.name))merged.push(d)});
+  evidenceDocs[t.id]=merged;saveEvidence();
+}
+function ensureEvidence(t){
+  if(!Array.isArray(evidenceDocs[t.id])||!evidenceDocs[t.id].length){evidenceDocs[t.id]=evidenceTemplate(t).docs;saveEvidence()}
+}
+function evidenceDone(t){
+  ensureEvidence(t);
+  const req=evidenceDocs[t.id].filter(d=>d.required!==false);
+  return req.length>0&&req.every(d=>d.checked);
+}
+function syncEvidence(t){t.evidence=evidenceDone(t)?"done":"todo"}
+
+/* 셀렉트 */
 function initSelects(){
-  $("#category").innerHTML="";
-  BUDGETS.forEach(b=>{
-    const o1=document.createElement("option");o1.value=b.id;o1.textContent=b.name;$("#category").appendChild(o1);
-    const o2=document.createElement("option");o2.value=b.id;o2.textContent=b.name;$("#filterCategory").appendChild(o2);
-  });
-  updateSubcats();
+  $("#category").innerHTML=BUDGETS.map(b=>`<option value="${b.id}">${b.name}</option>`).join("");
+  $("#filterCategory").innerHTML='<option value="">전체 항목</option>'+BUDGETS.map(b=>`<option value="${b.id}">${b.name}</option>`).join("");
+  updateSubCategorySelect();
+  updateFilterSubcategories();
 }
-function updateSubcats(){
+function updateSubCategorySelect(){
   const b=catById($("#category").value)||BUDGETS[0];
-  $("#subCategory").innerHTML=b.subs.map(s=>`<option>${s.name}</option>`).join("");
+  $("#subCategory").innerHTML=b.subs.map(s=>`<option value="${s.name}">${s.name}</option>`).join("");
 }
-function spentFor(id){return transactions.filter(t=>t.category===id).reduce((a,b)=>a+Number(b.amount),0)}
-function spentSub(id,name){return transactions.filter(t=>t.category===id&&t.subCategory===name).reduce((a,b)=>a+Number(b.amount),0)}
+function updateFilterSubcategories(){
+  const id=$("#filterCategory").value;
+  const items=id?(catById(id)?.subs||[]):BUDGETS.flatMap(b=>b.subs);
+  const unique=[...new Set(items.map(s=>s.name))];
+  $("#filterSubCategory").innerHTML='<option value="">전체 세부항목</option>'+unique.map(s=>`<option>${s}</option>`).join("");
+}
+$("#category").onchange=()=>{updateSubCategorySelect();refreshEvidenceEditor()};
+$("#payment").onchange=refreshEvidenceEditor;
+$("#filterCategory").onchange=()=>{updateFilterSubcategories();renderTransactions()};
+$("#filterSubCategory").onchange=renderTransactions;
+$("#filterEvidence").onchange=renderTransactions;
 
-function render(){
+/* 홈 */
+function spentFor(cat,sub=null){
+  return transactions.filter(t=>t.category===cat&&(!sub||t.subCategory===sub)).reduce((a,t)=>a+Number(t.amount||0),0);
+}
+function renderHome(){
   const total=BUDGETS.reduce((a,b)=>a+b.budget,0);
-  const spent=transactions.reduce((a,b)=>a+Number(b.amount),0);
-  const stSpent=stationeryTransactions.reduce((sum,t)=>sum+Number(t.total ?? t.amount ?? 0),0);
-
-  $("#totalBudget").textContent=fmt(total);
-  $("#spentTotal").textContent=fmt(spent);
-  $("#remainingTotal").textContent=fmt(total-spent);
-  $("#spentRate").textContent=(spent/total*100).toFixed(1)+"% 집행";
-  $("#remainingRate").textContent=Math.max(0,(total-spent)/total*100).toFixed(1)+"% 남음";
+  const spent=transactions.reduce((a,t)=>a+Number(t.amount||0),0);
+  const stSpent=stationeryTransactions.reduce((a,t)=>a+Number(t.total??t.amount??0),0);
+  $("#totalBudget").textContent=fmt(total);$("#spentTotal").textContent=fmt(spent);$("#remainingTotal").textContent=fmt(total-spent);
+  $("#spentRate").textContent=(spent/total*100).toFixed(1)+"% 집행";$("#remainingRate").textContent=Math.max(0,(total-spent)/total*100).toFixed(1)+"% 남음";
   $("#stationerySpentTop").textContent=fmt(stSpent);
-  $("#stationeryTopCaption").textContent=`여수문구사 상세 내역 합계`;
 
-  $("#budgetCards").innerHTML=BUDGETS.map(b=>{
-    const s=spentFor(b.id),rem=b.budget-s,rate=Math.min(100,s/b.budget*100);
-    const subs=b.subs.map(sub=>{
-      const ss=spentSub(b.id,sub.name),sr=sub.budget-ss;
-      return `<div class="subbudget ${sr<0?'over':''}">
-        <b>${escapeHtml(sub.name)}</b>
-        <span>${fmt(ss)} / ${fmt(sub.budget)} · ${sr>=0?'잔액 ':'초과 '}${fmt(Math.abs(sr))}</span>
-      </div>`;
-    }).join("");
-    return `<div class="budget-item ${rem<0?'over':''}" data-cat="${b.id}">
-      <div class="budget-row">
-        <div><div class="budget-name">${b.name}</div><div class="budget-sub">예산 ${fmt(b.budget)}</div></div>
-        <div class="budget-num">${fmt(s)}<div class="budget-sub">${rem>=0?'잔액 '+fmt(rem):'초과 '+fmt(-rem)}</div></div>
+  const cards=BUDGETS.map(b=>{
+    const catSpent=spentFor(b.id),catRem=b.budget-catSpent;
+    const subs=b.subs.map(s=>{const ss=spentFor(b.id,s.name),rem=s.budget-ss;return {...s,spent:ss,remaining:rem,done:rem<=0}})
+      .sort((a,b)=>Number(a.done)-Number(b.done));
+    return {...b,spent:catSpent,remaining:catRem,done:subs.every(s=>s.done),subs};
+  }).sort((a,b)=>Number(a.done)-Number(b.done));
+
+  $("#budgetOverview").innerHTML=cards.map(b=>`
+    <article class="overview-card ${b.done?'exhausted':''}">
+      <div class="overview-head">
+        <div><div class="overview-name">${b.name}</div><div class="overview-sub-meta">예산 ${fmt(b.budget)}</div></div>
+        <div class="overview-total">${fmt(b.spent)}<div class="overview-sub-meta">${b.remaining>=0?'잔액 '+fmt(b.remaining):'초과 '+fmt(-b.remaining)}</div></div>
       </div>
-      <div class="progress"><i style="width:${rate}%"></i></div>
-      <div class="subbudget-list">${subs}</div>
-    </div>`;
-  }).join("");
+      <div class="overview-sublist">
+        ${b.subs.map(s=>`
+          <div class="overview-sub ${s.done?'done':''}" data-cat="${b.id}" data-sub="${escapeHtml(s.name)}">
+            <div>
+              <div class="overview-sub-name">${escapeHtml(s.name)}</div>
+              <div class="overview-sub-meta">${fmt(s.spent)} / ${fmt(s.budget)} · ${s.remaining>=0?'잔액 '+fmt(s.remaining):'초과 '+fmt(-s.remaining)}</div>
+              <div class="progress"><i style="width:${Math.min(100,s.spent/s.budget*100)}%"></i></div>
+            </div>
+            <div class="overview-sub-amount">${s.done?'사용 완료':'보기 ›'}</div>
+          </div>`).join("")}
+      </div>
+    </article>`).join("");
 
-  document.querySelectorAll(".budget-item").forEach(el=>el.onclick=()=>{
-    $("#filterCategory").value=el.dataset.cat;
-    $("#filterEvidence").value="";
-    renderTx();
-
-    document.querySelectorAll(".budget-item").forEach(card=>{
-      card.classList.toggle("selected",card===el);
-    });
-
-    const target=$("#budgetTransactionsSection");
-    if(target){
-      setTimeout(()=>target.scrollIntoView({behavior:"smooth",block:"start"}),50);
-    }
+  document.querySelectorAll(".overview-sub").forEach(el=>el.onclick=()=>{
+    $("#filterCategory").value=el.dataset.cat;updateFilterSubcategories();$("#filterSubCategory").value=el.dataset.sub;$("#filterEvidence").value="";
+    renderTransactions();switchPage("budget");
   });
-  renderTx();
-  renderStationery();
-  renderEvidence();
 }
-function renderTx(){
-  const cat=$("#filterCategory").value,ev=$("#filterEvidence").value;
+
+/* 사업비 목록 */
+function renderTransactions(){
   let rows=[...transactions].sort((a,b)=>b.date.localeCompare(a.date));
+  const cat=$("#filterCategory").value,sub=$("#filterSubCategory").value,ev=$("#filterEvidence").value;
   if(cat)rows=rows.filter(t=>t.category===cat);
-  if(ev)rows=rows.filter(t=>t.evidence===ev);
-  $("#listCaption").textContent=cat?`${catById(cat).name} 내역`:"전체 내역";
-  $("#txList").innerHTML=rows.map(t=>{
-    const b=catById(t.category);
-    return `<div class="tx" data-id="${t.id}">
-      <div><div class="tx-title">${escapeHtml(t.merchant)}</div>
-      <div class="tx-meta">${t.date} · ${b?.name||""} › ${escapeHtml(t.subCategory||"")} · ${escapeHtml(t.payment||"")}
-      ${t.memo?`<br>${escapeHtml(t.memo)}`:""}</div></div>
-      <div class="tx-amount">${fmt(t.amount)}</div>
-    </div>`;
-  }).join("");
-  $("#emptyState").style.display=rows.length?"none":"block";
-  document.querySelectorAll("#txList .tx").forEach(el=>el.onclick=()=>openEdit(el.dataset.id));
-}
-function renderStationery(){
-
-  const mf=$("#stationeryMonthFilter").value;
-  let rows=[...stationeryTransactions].sort((a,b)=>b.date.localeCompare(a.date));
-  if(mf)rows=rows.filter(t=>monthKey(t.date)===mf);
-
-  const cap=[];
-  if(mf) cap.push(`${Number(mf.slice(5))}월`);
-  $("#stationeryListCaption").textContent=cap.length?cap.join(" · ")+" 내역":"전체 내역";
-
-  $("#stationeryList").innerHTML=rows.map(t=>{
-    const isLink=(t.purchaseType||"store")==="link";
-    const fee=Number(t.fee||0);
-    const shipping=Number(t.shipping||0);
-    const total=Number(t.total ?? (Number(t.amount||0)+fee+shipping));
-
-    const qtyText=t.qty?` · ${escapeHtml(t.qty)}`:"";
-    const purchaseText=isLink?"인터넷 대행구매":"직접구매";
-    const extraParts=[];
-    if(isLink && fee) extraParts.push(`수수료 ${fmt(fee)}`);
-    if(isLink && shipping) extraParts.push(`택배 ${fmt(shipping)}`);
-    const extra=extraParts.length?` · ${extraParts.join(" · ")}`:"";
-
-    return `
-    <div class="tx stationery-tx compact" data-id="${t.id}">
-      <div class="tx-main">
-        <div class="tx-title-row">
-          <div class="tx-title">${escapeHtml(t.item)}</div>
-          <div class="tx-amount">${fmt(total)}</div>
-        </div>
-        <div class="tx-meta compact-meta">
-          ${t.date}${qtyText} · ${purchaseText}${extra}
-        </div>
-        ${t.memo?`<div class="tx-note">${escapeHtml(t.memo)}</div>`:""}
+  if(sub)rows=rows.filter(t=>t.subCategory===sub);
+  if(ev)rows=rows.filter(t=>(t.evidence||"todo")===ev);
+  const cap=[];if(cat)cap.push(catById(cat)?.name||"");if(sub)cap.push(sub);if(ev)cap.push(ev==="done"?"증빙 완료":"증빙 필요");
+  $("#budgetListCaption").textContent=cap.length?cap.join(" · "):"전체 내역";
+  $("#txList").innerHTML=rows.map(t=>`
+    <div class="tx" data-id="${t.id}">
+      <div class="tx-title-row"><div class="tx-title">${escapeHtml(t.merchant)}</div><div class="tx-amount">${fmt(t.amount)}</div></div>
+      <div class="tx-meta">${t.date} · ${catById(t.category)?.name||""} › ${escapeHtml(t.subCategory)} · ${escapeHtml(t.payment||"")}
+        <span class="badge ${(t.evidence||"todo")==="todo"?'todo':''}">${(t.evidence||"todo")==="done"?'증빙 완료':'증빙 필요'}</span>
       </div>
-    </div>`;
-  }).join("");
-  $("#stationeryEmpty").style.display=rows.length?"none":"block";
-  document.querySelectorAll("#stationeryList .tx").forEach(el=>el.onclick=()=>openStationeryEdit(el.dataset.id));
+      ${t.memo?`<div class="tx-note">${escapeHtml(t.memo)}</div>`:""}
+    </div>`).join("");
+  $("#txEmpty").style.display=rows.length?"none":"block";
+  document.querySelectorAll("#txList .tx").forEach(el=>el.onclick=()=>openTxEdit(el.dataset.id));
 }
 
-function openNew(){
-  $("#dialogTitle").textContent="내역 추가";$("#editId").value="";
-  $("#date").value=new Date().toISOString().slice(0,10);
-  $("#category").value=BUDGETS[0].id;updateSubcats();
-  $("#merchant").value="";$("#amount").value="";$("#payment").value="전용카드";$("#evidence").value="done";$("#memo").value="";
-  $("#deleteBtn").classList.add("hidden");$("#txDialog").showModal();
+/* 사업비 편집 + 증빙 */
+let workingEvidence=[];
+function refreshEvidenceEditor(){
+  const id=$("#editId").value;
+  const temp={id:id||"temp",category:$("#category").value,subCategory:$("#subCategory").value,payment:$("#payment").value};
+  const tpl=evidenceTemplate(temp);
+  $("#evidenceRuleText").textContent=tpl.rule;
+  if(!id){
+    const oldMap=new Map(workingEvidence.map(d=>[d.name,d]));
+    workingEvidence=tpl.docs.map(d=>({...d,checked:oldMap.get(d.name)?.checked||false}));
+  }else{
+    const original=transactions.find(t=>t.id===id);
+    if(original){
+      mergeEvidence({...original,category:temp.category,subCategory:temp.subCategory,payment:temp.payment});
+      workingEvidence=(evidenceDocs[id]||[]).map(d=>({...d}));
+    }
+  }
+  renderEvidenceEditor();
 }
-function openEdit(id){
+function renderEvidenceEditor(){
+  $("#evidenceChecklist").innerHTML=workingEvidence.map((d,i)=>`
+    <label class="evidence-doc">
+      <input type="checkbox" data-i="${i}" ${d.checked?'checked':''}>
+      <span class="doc-main"><span class="doc-title">${escapeHtml(d.name)}</span><span class="doc-tag ${d.required===false?'conditional':'required'}">${d.required===false?'조건부':'필수'}</span></span>
+      ${d.custom?`<button type="button" data-del="${i}">✕</button>`:""}
+    </label>`).join("");
+  document.querySelectorAll("#evidenceChecklist input").forEach(c=>c.onchange=()=>{workingEvidence[Number(c.dataset.i)].checked=c.checked;updateEvidenceBadge()});
+  document.querySelectorAll("#evidenceChecklist button").forEach(b=>b.onclick=()=>{workingEvidence.splice(Number(b.dataset.del),1);renderEvidenceEditor()});
+  updateEvidenceBadge();
+}
+function updateEvidenceBadge(){
+  const req=workingEvidence.filter(d=>d.required!==false),done=req.length&&req.every(d=>d.checked);
+  $("#evidenceStateBadge").textContent=done?"증빙 완료":"증빙 필요";$("#evidenceStateBadge").classList.toggle("todo",!done);
+}
+$("#addEvidenceDocBtn").onclick=()=>{const n=$("#newEvidenceDoc").value.trim();if(!n)return;workingEvidence.push({name:n,checked:false,required:true,custom:true});$("#newEvidenceDoc").value="";renderEvidenceEditor()};
+
+function openTxNew(){
+  $("#txDialogTitle").textContent="사업비 내역 추가";$("#editId").value="";$("#date").value=new Date().toISOString().slice(0,10);
+  $("#category").value=BUDGETS[0].id;updateSubCategorySelect();$("#merchant").value="";$("#amount").value="";$("#payment").value="전용카드";$("#memo").value="";
+  workingEvidence=[];refreshEvidenceEditor();$("#deleteTxBtn").classList.add("hidden");openDialog($("#txDialog"));
+}
+function openTxEdit(id){
   const t=transactions.find(x=>x.id===id);if(!t)return;
-  $("#dialogTitle").textContent="내역 수정";$("#editId").value=t.id;$("#date").value=t.date;
-  $("#category").value=t.category;updateSubcats();$("#subCategory").value=t.subCategory;
-  $("#merchant").value=t.merchant;$("#amount").value=t.amount;$("#payment").value=t.payment;$("#evidence").value=t.evidence;$("#memo").value=t.memo||"";
-  $("#deleteBtn").classList.remove("hidden");$("#txDialog").showModal();
+  $("#txDialogTitle").textContent="사업비 내역 수정";$("#editId").value=id;$("#date").value=t.date;$("#category").value=t.category;updateSubCategorySelect();$("#subCategory").value=t.subCategory;
+  $("#merchant").value=t.merchant;$("#amount").value=t.amount;$("#payment").value=t.payment||"전용카드";$("#memo").value=t.memo||"";
+  ensureEvidence(t);workingEvidence=(evidenceDocs[id]||[]).map(d=>({...d}));$("#evidenceRuleText").textContent=evidenceTemplate(t).rule;renderEvidenceEditor();
+  $("#deleteTxBtn").classList.remove("hidden");openDialog($("#txDialog"));
 }
-function validateSubBudget(obj){
-  const b=catById(obj.category),sub=b?.subs.find(s=>s.name===obj.subCategory);
-  if(!sub)return true;
-  const other=transactions.filter(t=>t.category===obj.category&&t.subCategory===obj.subCategory&&t.id!==obj.id).reduce((a,t)=>a+Number(t.amount),0);
-  const projected=other+Number(obj.amount);
-  return projected<=sub.budget || confirm(`${obj.subCategory} 예산 ${fmt(sub.budget)}을 ${fmt(projected-sub.budget)} 초과합니다.\n그래도 저장할까요?`);
-}
+$("#addTxBtn").onclick=openTxNew;$("#closeTxDialog").onclick=()=>closeDialog($("#txDialog"));
 $("#txForm").addEventListener("submit",e=>{
   e.preventDefault();
-  const obj={id:$("#editId").value||crypto.randomUUID(),date:$("#date").value,category:$("#category").value,subCategory:$("#subCategory").value,
-    merchant:$("#merchant").value.trim(),amount:Number($("#amount").value),payment:$("#payment").value,evidence:$("#evidence").value,memo:$("#memo").value.trim()};
-  if(!validateSubBudget(obj))return;
-  const i=transactions.findIndex(x=>x.id===obj.id);
-  const isNew=i<0;
-  if(i>=0)transactions[i]=obj;else transactions.push(obj);
-  if(isNew || !evidenceDocs[obj.id]){
-    evidenceDocs[obj.id]=defaultEvidenceDocs(obj);
-    if(obj.evidence==="done") evidenceDocs[obj.id].forEach(d=>{if(d.required!==false)d.checked=true;});
-    saveEvidence();
-  } else {
-    mergeEvidenceTemplate(obj);
-    syncEvidenceStatus(obj);
-  }
-  save();$("#txDialog").close();render();
+  const obj={id:$("#editId").value||uid(),date:$("#date").value,category:$("#category").value,subCategory:$("#subCategory").value,merchant:$("#merchant").value.trim(),amount:Number($("#amount").value),payment:$("#payment").value,memo:$("#memo").value.trim()};
+  evidenceDocs[obj.id]=workingEvidence.map(d=>({...d}));
+  const req=evidenceDocs[obj.id].filter(d=>d.required!==false);obj.evidence=req.length&&req.every(d=>d.checked)?"done":"todo";
+  const i=transactions.findIndex(x=>x.id===obj.id);if(i>=0)transactions[i]=obj;else transactions.push(obj);
+  save();saveEvidence();closeDialog($("#txDialog"));renderAll();
 });
-$("#deleteBtn").onclick=()=>{
-  const id=$("#editId").value;if(id&&confirm("이 내역을 삭제할까요?")){transactions=transactions.filter(x=>x.id!==id);delete evidenceDocs[id];saveEvidence();save();$("#txDialog").close();render();}
-};
+$("#deleteTxBtn").onclick=()=>{const id=$("#editId").value;if(id&&confirm("이 사업비 내역을 삭제할까요?")){transactions=transactions.filter(x=>x.id!==id);delete evidenceDocs[id];save();saveEvidence();closeDialog($("#txDialog"));renderAll()}};
 
-
-function stationeryFeeAmount(){
-  const type=$("#stationeryPurchaseType").value;
-  if(type!=="link") return 0;
-  const amount=Number($("#stationeryAmount").value||0);
-  const mode=$("#stationeryFeeMode").value;
-  if(mode==="percent"){
-    return Math.round(amount * Number($("#stationeryFeeRate").value||0) / 100);
-  }
-  if(mode==="fixed"){
-    return Number($("#stationeryFeeFixed").value||0);
-  }
+/* 문구사 */
+function feeAmount(){
+  if($("#stationeryPurchaseType").value!=="link")return 0;
+  const amount=Number($("#stationeryAmount").value||0),mode=$("#stationeryFeeMode").value;
+  if(mode==="percent")return Math.round(amount*Number($("#stationeryFeeRate").value||0)/100);
+  if(mode==="fixed")return Number($("#stationeryFeeFixed").value||0);
   return 0;
 }
-function stationeryTotalAmount(){
-  const amount=Number($("#stationeryAmount").value||0);
-  const shipping=$("#stationeryPurchaseType").value==="link" ? Number($("#stationeryShipping").value||0) : 0;
-  return amount + stationeryFeeAmount() + shipping;
+function updateFeeUI(){
+  const link=$("#stationeryPurchaseType").value==="link";$("#stationeryLinkLabel").classList.toggle("hidden",!link);$("#stationeryFeeFields").classList.toggle("hidden",!link);
+  const mode=$("#stationeryFeeMode").value;$("#stationeryFeeRateLabel").classList.toggle("hidden",mode!=="percent");$("#stationeryFeeFixedLabel").classList.toggle("hidden",mode!=="fixed");
+  const total=Number($("#stationeryAmount").value||0)+feeAmount()+(link?Number($("#stationeryShipping").value||0):0);
+  $("#stationeryFeePreview").textContent=fmt(feeAmount());$("#stationeryTotalPreview").textContent=fmt(total);
 }
-function updateStationeryFeeUI(){
-  const isLink=$("#stationeryPurchaseType").value==="link";
-  $("#stationeryLinkLabel").classList.toggle("hidden",!isLink);
-  $("#stationeryFeeFields").classList.toggle("hidden",!isLink);
+["stationeryPurchaseType","stationeryFeeMode","stationeryAmount","stationeryFeeRate","stationeryFeeFixed","stationeryShipping"].forEach(id=>$("#"+id).addEventListener(id.includes("Type")||id.includes("Mode")?"change":"input",updateFeeUI));
 
-  const mode=$("#stationeryFeeMode").value;
-  $("#stationeryFeeRateLabel").classList.toggle("hidden",mode!=="percent");
-  $("#stationeryFeeFixedLabel").classList.toggle("hidden",mode!=="fixed");
-
-  $("#stationeryFeePreview").textContent=fmt(stationeryFeeAmount());
-  $("#stationeryTotalPreview").textContent=fmt(stationeryTotalAmount());
+function renderStationery(){
+  let rows=[...stationeryTransactions].sort((a,b)=>b.date.localeCompare(a.date));const m=$("#stationeryMonthFilter").value;if(m)rows=rows.filter(t=>monthKey(t.date)===m);
+  $("#stationeryCaption").textContent=m?`${Number(m.slice(5))}월 내역`:"전체 내역";
+  $("#stationeryList").innerHTML=rows.map(t=>{
+    const isLink=(t.purchaseType||"store")==="link",fee=Number(t.fee||0),shipping=Number(t.shipping||0),total=Number(t.total??(Number(t.amount||0)+fee+shipping));
+    const meta=[t.date,t.qty?escapeHtml(t.qty):"",isLink?"인터넷 대행구매":"직접구매",isLink&&fee?`수수료 ${fmt(fee)}`:"",isLink&&shipping?`택배 ${fmt(shipping)}`:""].filter(Boolean).join(" · ");
+    return `<div class="tx" data-id="${t.id}"><div class="tx-title-row"><div class="tx-title">${escapeHtml(t.item)}</div><div class="tx-amount">${fmt(total)}</div></div><div class="tx-meta">${meta}</div>${t.memo?`<div class="tx-note">${escapeHtml(t.memo)}</div>`:""}</div>`;
+  }).join("");
+  $("#stationeryEmpty").style.display=rows.length?"none":"block";document.querySelectorAll("#stationeryList .tx").forEach(el=>el.onclick=()=>openStationeryEdit(el.dataset.id));
 }
+$("#stationeryMonthFilter").onchange=renderStationery;
 function openStationeryNew(){
-  $("#stationeryDialogTitle").textContent="여수문구사 사용 내역 추가";
-  $("#stationeryEditId").value="";
-  $("#stationeryDate").value=new Date().toISOString().slice(0,10);
-  $("#stationeryPurchaseType").value="store";
-  $("#stationeryItem").value="";
-  $("#stationeryLink").value="";
-  $("#stationeryAmount").value="";
-  $("#stationeryFeeMode").value="percent";
-  $("#stationeryFeeRate").value="20";
-  $("#stationeryFeeFixed").value="0";
-  $("#stationeryShipping").value="0";
-  $("#stationeryQty").value="";
-  
-  $("#stationeryMemo").value="";
-  $("#deleteStationeryBtn").classList.add("hidden");
-  updateStationeryFeeUI();
-  $("#stationeryDialog").showModal();
+  $("#stationeryDialogTitle").textContent="여수문구사 내역 추가";$("#stationeryEditId").value="";$("#stationeryDate").value=new Date().toISOString().slice(0,10);$("#stationeryPurchaseType").value="store";$("#stationeryItem").value="";$("#stationeryLink").value="";
+  $("#stationeryAmount").value="";$("#stationeryFeeMode").value="percent";$("#stationeryFeeRate").value="20";$("#stationeryFeeFixed").value="0";$("#stationeryShipping").value="0";$("#stationeryQty").value="";$("#stationeryMemo").value="";$("#deleteStationeryBtn").classList.add("hidden");updateFeeUI();openDialog($("#stationeryDialog"));
 }
 function openStationeryEdit(id){
   const t=stationeryTransactions.find(x=>x.id===id);if(!t)return;
-  $("#stationeryDialogTitle").textContent="여수문구사 사용 내역 수정";
-  $("#stationeryEditId").value=t.id;
-  $("#stationeryDate").value=t.date;
-  $("#stationeryPurchaseType").value=t.purchaseType||"store";
-  $("#stationeryItem").value=t.item;
-  $("#stationeryLink").value=t.link||"";
-  $("#stationeryAmount").value=t.amount;
-  $("#stationeryFeeMode").value=t.feeMode||"percent";
-  $("#stationeryFeeRate").value=t.feeRate ?? 20;
-  $("#stationeryFeeFixed").value=t.feeFixed ?? 0;
-  $("#stationeryShipping").value=t.shipping ?? 0;
-  $("#stationeryQty").value=t.qty||"";
-  
-  $("#stationeryMemo").value=t.memo||"";
-  $("#deleteStationeryBtn").classList.remove("hidden");
-  updateStationeryFeeUI();
-  $("#stationeryDialog").showModal();
+  $("#stationeryDialogTitle").textContent="여수문구사 내역 수정";$("#stationeryEditId").value=id;$("#stationeryDate").value=t.date;$("#stationeryPurchaseType").value=t.purchaseType||"store";$("#stationeryItem").value=t.item;$("#stationeryLink").value=t.link||"";
+  $("#stationeryAmount").value=t.amount;$("#stationeryFeeMode").value=t.feeMode||"percent";$("#stationeryFeeRate").value=t.feeRate??20;$("#stationeryFeeFixed").value=t.feeFixed??0;$("#stationeryShipping").value=t.shipping??0;$("#stationeryQty").value=t.qty||"";$("#stationeryMemo").value=t.memo||"";
+  $("#deleteStationeryBtn").classList.remove("hidden");updateFeeUI();openDialog($("#stationeryDialog"));
 }
+$("#addStationeryBtn").onclick=openStationeryNew;$("#closeStationeryDialog").onclick=()=>closeDialog($("#stationeryDialog"));
 $("#stationeryForm").addEventListener("submit",e=>{
-  e.preventDefault();
-  const purchaseType=$("#stationeryPurchaseType").value;
-  const feeMode=$("#stationeryFeeMode").value;
-  const feeRate=Number($("#stationeryFeeRate").value||0);
-  const feeFixed=Number($("#stationeryFeeFixed").value||0);
-  const shipping=purchaseType==="link"?Number($("#stationeryShipping").value||0):0;
-  const amount=Number($("#stationeryAmount").value||0);
-  const fee=purchaseType==="link"
-    ? (feeMode==="percent" ? Math.round(amount*feeRate/100) : feeMode==="fixed" ? feeFixed : 0)
-    : 0;
-  const total=amount+fee+shipping;
-
-  const obj={
-    id:$("#stationeryEditId").value||crypto.randomUUID(),
-    date:$("#stationeryDate").value,
-    purchaseType,
-    item:$("#stationeryItem").value.trim(),
-    link:purchaseType==="link"?$("#stationeryLink").value.trim():"",
-    amount,
-    feeMode:purchaseType==="link"?feeMode:"none",
-    feeRate:purchaseType==="link"&&feeMode==="percent"?feeRate:0,
-    feeFixed:purchaseType==="link"&&feeMode==="fixed"?feeFixed:0,
-    fee,
-    shipping,
-    total,
-    qty:$("#stationeryQty").value.trim(),
-    memo:$("#stationeryMemo").value.trim()
-  };
-
-  const i=stationeryTransactions.findIndex(x=>x.id===obj.id);
-  if(i>=0)stationeryTransactions[i]=obj;else stationeryTransactions.push(obj);
-  saveStationery();$("#stationeryDialog").close();render();
+  e.preventDefault();const purchaseType=$("#stationeryPurchaseType").value,amount=Number($("#stationeryAmount").value||0),fee=feeAmount(),shipping=purchaseType==="link"?Number($("#stationeryShipping").value||0):0;
+  const obj={id:$("#stationeryEditId").value||uid(),date:$("#stationeryDate").value,purchaseType,item:$("#stationeryItem").value.trim(),link:purchaseType==="link"?$("#stationeryLink").value.trim():"",amount,feeMode:purchaseType==="link"?$("#stationeryFeeMode").value:"none",feeRate:purchaseType==="link"?Number($("#stationeryFeeRate").value||0):0,feeFixed:purchaseType==="link"?Number($("#stationeryFeeFixed").value||0):0,fee,shipping,total:amount+fee+shipping,qty:$("#stationeryQty").value.trim(),memo:$("#stationeryMemo").value.trim()};
+  const i=stationeryTransactions.findIndex(x=>x.id===obj.id);if(i>=0)stationeryTransactions[i]=obj;else stationeryTransactions.push(obj);saveStationery();closeDialog($("#stationeryDialog"));renderAll();
 });
-$("#deleteStationeryBtn").onclick=()=>{
-  const id=$("#stationeryEditId").value;if(id&&confirm("이 여수문구사 내역을 삭제할까요?")){
-    stationeryTransactions=stationeryTransactions.filter(x=>x.id!==id);saveStationery();$("#stationeryDialog").close();render();
-  }
-};
+$("#deleteStationeryBtn").onclick=()=>{const id=$("#stationeryEditId").value;if(id&&confirm("이 여수문구사 내역을 삭제할까요?")){stationeryTransactions=stationeryTransactions.filter(x=>x.id!==id);saveStationery();closeDialog($("#stationeryDialog"));renderAll()}};
 
-
-
-function renderEvidence(){
-  syncAllEvidenceStatuses();
-
-  const select=$("#evidenceTxFilter");
-  const keep=select.value;
-  select.innerHTML='<option value="">전체 집행 건</option>'+
-    [...transactions].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>
-      `<option value="${t.id}">${t.date} · ${escapeHtml(t.merchant)}</option>`
-    ).join("");
-  if([...select.options].some(o=>o.value===keep))select.value=keep;
-
-  let rows=[...transactions].sort((a,b)=>b.date.localeCompare(a.date));
-  const txFilter=select.value;
-  const status=$("#evidenceStatusFilter").value;
-  if(txFilter)rows=rows.filter(t=>t.id===txFilter);
-  if(status)rows=rows.filter(t=>t.evidence===status);
-
-  $("#evidenceList").innerHTML=rows.map(t=>{
-    ensureEvidenceForTransaction(t);
-    const docs=evidenceDocs[t.id]||[];
-    const requiredDocs=docs.filter(d=>d.required!==false);
-    const checked=requiredDocs.filter(d=>d.checked).length;
-    const b=catById(t.category);
-    const tpl=evidenceTemplateForTransaction(t);
-    return `<div class="evidence-card ${t.evidence==='done'?'done':''}" data-id="${t.id}">
-      <div class="evidence-card-head">
-        <div>
-          <div class="evidence-card-title">${escapeHtml(t.merchant)}</div>
-          <div class="evidence-card-meta">${t.date} · ${b?.name||""} › ${escapeHtml(t.subCategory||"")} · ${fmt(t.amount)}</div>
-          <div class="evidence-detail">${escapeHtml(tpl.title)}</div>
-        </div>
-        <span class="badge ${t.evidence==='todo'?'todo':''}">${t.evidence==='done'?'증빙 완료':'증빙 필요'}</span>
+/* 회의 */
+function renderMeetings(){
+  const rows=[...meetings].sort((a,b)=>b.date.localeCompare(a.date));
+  $("#meetingList").innerHTML=rows.map(m=>`
+    <div class="meeting-card" data-id="${m.id}">
+      <div class="meeting-title-row"><div class="meeting-title">${escapeHtml(m.title)}</div><div class="meeting-date">${m.date}</div></div>
+      <div class="meeting-checks">
+        <span class="status-pill ${m.photo?'done':''}">사진 ${m.photo?'완료':'미완료'}</span>
+        <span class="status-pill ${m.minutes?'done':''}">회의록 ${m.minutes?'완료':'미완료'}</span>
       </div>
-      <div class="evidence-progress">필수서류 ${checked}/${requiredDocs.length} 확인</div>
-    </div>`;
-  }).join("");
-
-  $("#evidenceEmpty").style.display=rows.length?"none":"block";
-  document.querySelectorAll(".evidence-card").forEach(el=>el.onclick=()=>openEvidenceDialog(el.dataset.id));
-
-  renderTx();
+      ${m.memo?`<div class="meeting-memo">${escapeHtml(m.memo)}</div>`:""}
+    </div>`).join("");
+  $("#meetingEmpty").style.display=rows.length?"none":"block";document.querySelectorAll(".meeting-card").forEach(el=>el.onclick=()=>openMeetingEdit(el.dataset.id));
 }
+function openMeetingNew(){$("#meetingDialogTitle").textContent="회의 추가";$("#meetingEditId").value="";$("#meetingDate").value=new Date().toISOString().slice(0,10);$("#meetingTitle").value="";$("#meetingPhoto").checked=false;$("#meetingMinutes").checked=false;$("#meetingMemo").value="";$("#deleteMeetingBtn").classList.add("hidden");openDialog($("#meetingDialog"))}
+function openMeetingEdit(id){const m=meetings.find(x=>x.id===id);if(!m)return;$("#meetingDialogTitle").textContent="회의 수정";$("#meetingEditId").value=id;$("#meetingDate").value=m.date;$("#meetingTitle").value=m.title;$("#meetingPhoto").checked=!!m.photo;$("#meetingMinutes").checked=!!m.minutes;$("#meetingMemo").value=m.memo||"";$("#deleteMeetingBtn").classList.remove("hidden");openDialog($("#meetingDialog"))}
+$("#addMeetingBtn").onclick=openMeetingNew;$("#closeMeetingDialog").onclick=()=>closeDialog($("#meetingDialog"));
+$("#meetingForm").addEventListener("submit",e=>{e.preventDefault();const obj={id:$("#meetingEditId").value||uid(),date:$("#meetingDate").value,title:$("#meetingTitle").value.trim(),photo:$("#meetingPhoto").checked,minutes:$("#meetingMinutes").checked,memo:$("#meetingMemo").value.trim()};const i=meetings.findIndex(x=>x.id===obj.id);if(i>=0)meetings[i]=obj;else meetings.push(obj);saveMeetings();closeDialog($("#meetingDialog"));renderMeetings()});
+$("#deleteMeetingBtn").onclick=()=>{const id=$("#meetingEditId").value;if(id&&confirm("이 회의 기록을 삭제할까요?")){meetings=meetings.filter(x=>x.id!==id);saveMeetings();closeDialog($("#meetingDialog"));renderMeetings()}};
 
-function openEvidenceDialog(id){
-  const t=transactions.find(x=>x.id===id);if(!t)return;
-  ensureEvidenceForTransaction(t);
-  $("#evidenceTxId").value=id;
-  $("#evidenceDialogTitle").textContent="증빙서류 관리";
-  $("#evidenceTxInfo").innerHTML=`<b>${escapeHtml(t.merchant)}</b><br>${t.date} · ${fmt(t.amount)} · ${escapeHtml(catById(t.category)?.name||"")} › ${escapeHtml(t.subCategory||"")}`;
-  const tpl=evidenceTemplateForTransaction(t);
-  const ruleInfo=$("#evidenceRuleInfo");
-  if(ruleInfo) ruleInfo.innerHTML=`<b>${escapeHtml(tpl.title)}</b><br>${escapeHtml(tpl.rule)}`;
-  renderEvidenceChecklist(id);
-  $("#newEvidenceDoc").value="";
-  const dlg=$("#evidenceDialog");
-  if(typeof dlg.showModal==="function") dlg.showModal();
-  else dlg.setAttribute("open","");
-}
-function renderEvidenceChecklist(id){
-  const docs=evidenceDocs[id]||[];
-  $("#evidenceChecklist").innerHTML=docs.map((d,i)=>`
-    <label class="evidence-doc">
-      <input type="checkbox" data-index="${i}" ${d.checked?"checked":""}>
-      <span class="doc-main">
-        <span class="doc-title">${escapeHtml(d.name)}</span>
-        <span class="doc-tag ${d.required===false?'conditional':'required'}">${d.required===false?'조건부':'필수'}</span>
-      </span>
-      ${d.custom?`<button type="button" data-delete="${i}" aria-label="삭제">✕</button>`:""}
-    </label>`).join("");
-  document.querySelectorAll('#evidenceChecklist input[type="checkbox"]').forEach(ch=>{
-    ch.onchange=()=>{
-      const idx=Number(ch.dataset.index);
-      evidenceDocs[id][idx].checked=ch.checked;
-    };
-  });
-  document.querySelectorAll('#evidenceChecklist button[data-delete]').forEach(btn=>{
-    btn.onclick=()=>{
-      const idx=Number(btn.dataset.delete);
-      evidenceDocs[id].splice(idx,1);
-      renderEvidenceChecklist(id);
-    };
-  });
-}
-$("#addEvidenceDocBtn").onclick=()=>{
-  const id=$("#evidenceTxId").value;
-  const name=$("#newEvidenceDoc").value.trim();
-  if(!id||!name)return;
-  evidenceDocs[id].push({name,checked:false,required:true,custom:true});
-  $("#newEvidenceDoc").value="";
-  renderEvidenceChecklist(id);
-};
-$("#resetEvidenceBtn").onclick=()=>{
-  const id=$("#evidenceTxId").value;
-  const t=transactions.find(x=>x.id===id);
-  if(!t)return;
-  if(confirm("이 건의 증빙 목록을 기본 항목으로 되돌릴까요?")){
-    evidenceDocs[id]=defaultEvidenceDocs(t);
-    renderEvidenceChecklist(id);
-  }
-};
-$("#saveEvidenceBtn").onclick=()=>{
-  const id=$("#evidenceTxId").value;
-  const t=transactions.find(x=>x.id===id);
-  if(!t)return;
-  saveEvidence();
-  syncEvidenceStatus(t);
-  save();
-  $("#evidenceDialog").close();
-  render();
-};
-$("#closeEvidenceDialog").onclick=()=>{const d=$("#evidenceDialog"); if(typeof d.close==="function") d.close(); else d.removeAttribute("open");};
-$("#evidenceTxFilter").onchange=renderEvidence;
-$("#evidenceStatusFilter").onchange=renderEvidence;
-
-
-document.querySelectorAll(".main-tab").forEach(btn=>btn.onclick=()=>{
-  document.querySelectorAll(".main-tab").forEach(b=>b.classList.toggle("active",b===btn));
-  $("#budgetTab").classList.toggle("active",btn.dataset.tab==="budget");
-  $("#stationeryTab").classList.toggle("active",btn.dataset.tab==="stationery");
-  $("#evidenceTab").classList.toggle("active",btn.dataset.tab==="evidence");
-});
-
-$("#addBtn").onclick=openNew;
-$("#closeDialog").onclick=()=>$("#txDialog").close();
-$("#category").onchange=updateSubcats;
-$("#filterCategory").onchange=()=>{
-  const cat=$("#filterCategory").value;
-  document.querySelectorAll(".budget-item").forEach(card=>{
-    card.classList.toggle("selected",!!cat && card.dataset.cat===cat);
-  });
-  renderTx();
-};
-$("#filterEvidence").onchange=renderTx;
-$("#showAllBtn").onclick=()=>{
-  $("#filterCategory").value="";
-  $("#filterEvidence").value="";
-  document.querySelectorAll(".budget-item").forEach(card=>card.classList.remove("selected"));
-  renderTx();
-};
-
-
-$("#stationeryPurchaseType").onchange=updateStationeryFeeUI;
-$("#stationeryFeeMode").onchange=updateStationeryFeeUI;
-$("#stationeryAmount").oninput=updateStationeryFeeUI;
-$("#stationeryFeeRate").oninput=updateStationeryFeeUI;
-$("#stationeryFeeFixed").oninput=updateStationeryFeeUI;
-$("#stationeryShipping").oninput=updateStationeryFeeUI;
-$("#addStationeryBtn").onclick=openStationeryNew;
-$("#closeStationeryDialog").onclick=()=>$("#stationeryDialog").close();
-$("#stationeryMonthFilter").onchange=renderStationery;
+/* CSV/백업 */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function parseCsv(text){
-  text=String(text||"").replace(/^\uFEFF/,"");
-  const rows=[];
-  let row=[],cell="",inQuotes=false;
-  for(let i=0;i<text.length;i++){
-    const ch=text[i];
-    if(inQuotes){
-      if(ch==='"' && text[i+1]==='"'){cell+='"';i++;}
-      else if(ch==='"'){inQuotes=false;}
-      else cell+=ch;
-    }else{
-      if(ch==='"') inQuotes=true;
-      else if(ch===','){row.push(cell);cell="";}
-      else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell="";}
-      else if(ch!=='\r') cell+=ch;
-    }
-  }
-  if(cell.length || row.length){row.push(cell);rows.push(row);}
-  return rows.filter(r=>r.some(v=>String(v).trim()!==""));
+  text=String(text||"").replace(/^\uFEFF/,"");const rows=[];let row=[],cell="",q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];if(q){if(ch==='"'&&text[i+1]==='"'){cell+='"';i++}else if(ch==='"')q=false;else cell+=ch}else{if(ch==='"')q=true;else if(ch===','){row.push(cell);cell=""}else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell=""}else if(ch!=='\r')cell+=ch}}
+  if(cell.length||row.length){row.push(cell);rows.push(row)}return rows.filter(r=>r.some(v=>String(v).trim()!==""));
 }
-function normalizeHeader(v){
-  return String(v||"").trim().replace(/\s+/g,"").replace(/[()]/g,"");
-}
-function normalizeDate(v){
-  const s=String(v||"").trim();
-  let m=s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);
-  if(m) return `${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
-  m=s.match(/^(\d{2})[-./](\d{1,2})[-./](\d{1,2})$/);
-  if(m) return `20${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
-  return "";
-}
-function parseAmount(v){
-  const n=Number(String(v||"").replace(/[^\d.-]/g,""));
-  return Number.isFinite(n)?n:NaN;
-}
-function parseBool(v){
-  const s=String(v||"").trim().toLowerCase();
-  return ["1","true","yes","y","완료","체크","o","○","예"].includes(s);
-}
-function categoryIdFromName(name){
-  const s=String(name||"").trim();
-  const aliases={
-    "운영수당":"allowance","자문료":"allowance",
-    "행사운영비":"event",
-    "임차료":"rent",
-    "사무관리비":"office",
-    "소모성물품구입비":"office",
-    "식비/다과비":"office","식비·다과비":"office","식비다과비":"office"
-  };
-  return aliases[s] || BUDGETS.find(b=>b.name===s)?.id || "";
-}
-function normalizeSubcategory(catId,sub){
-  const s=String(sub||"").trim();
-  if(!catId)return "";
-  const b=catById(catId);
-  if(!b)return "";
-  const direct=b.subs.find(x=>x.name===s);
-  if(direct)return direct.name;
-  const aliases={
-    "재료비":"행사운영비(재료비)",
-    "행사운영비재료비":"행사운영비(재료비)",
-    "플랜카드":"플랜카드 제작",
-    "현수막":"플랜카드 제작",
-    "소모성물품":"소모성물품구입비",
-    "식비다과비":"식비/다과비",
-    "식비·다과비":"식비/다과비"
-  };
-  const a=aliases[s.replace(/\s+/g,"")];
-  if(a && b.subs.some(x=>x.name===a))return a;
-  return "";
-}
-function rowObj(headers,row){
-  const obj={};
-  headers.forEach((h,i)=>obj[normalizeHeader(h)]=String(row[i]??"").trim());
-  return obj;
-}
-function firstVal(obj,names){
-  for(const n of names){
-    const k=normalizeHeader(n);
-    if(obj[k]!==undefined && obj[k]!=="")return obj[k];
-  }
-  return "";
-}
-function showImportResult(message,type="success"){
-  const el=$("#csvImportResult");
-  if(!el)return;
-  el.className=`import-result ${type}`;
-  el.innerHTML=message;
-}
-function importCsvText(text){
-  const rows=parseCsv(text);
-  if(rows.length<2) throw new Error("CSV에 데이터 행이 없습니다.");
+const norm=s=>String(s||"").trim().replace(/\s+/g,"");
+function first(o,names){for(const n of names){if(o[norm(n)]!==undefined&&o[norm(n)]!=="")return o[norm(n)]}return ""}
+function dateNorm(v){const s=String(v||"").trim(),m=s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);return m?`${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`:""}
+function bool(v){return ["1","true","완료","체크","예","y","yes"].includes(String(v||"").trim().toLowerCase())}
 
-  const headers=rows[0];
-  const data=rows.slice(1).map((r,i)=>({o:rowObj(headers,r),line:i+2}));
-  const evidenceRows=[];
-  const idMap=new Map();
-  const existingById=new Map(transactions.map(t=>[t.id,t]));
-  const existingKeys=new Set(transactions.map(t=>`${t.date}|${t.merchant}|${Number(t.amount)}`));
-  let addedBudget=0,addedStationery=0,updatedEvidence=0,duplicates=0;
-  const skipped=[];
-
-  for(const {o,line} of data){
-    const type=firstVal(o,["구분","유형","type"]) || "사업비";
-
-    if(type.includes("증빙서류")){
-      evidenceRows.push({o,line});
-      continue;
-    }
-
-    const date=normalizeDate(firstVal(o,["날짜","일자","date"]));
-    const totalAmount=parseAmount(firstVal(o,["금액","총지출액","결제금액","amount"]));
-    const importedId=firstVal(o,["내역ID","ID","id"]);
-
-    if(!date || !Number.isFinite(totalAmount) || totalAmount<0){
-      skipped.push(`${line}행: 날짜 또는 금액 확인 필요`);
-      continue;
-    }
-
-    if(type.includes("여수문구사")){
-      const item=firstVal(o,["품목","세부항목/품목","사용처/수량","사용처","내용"]);
-      if(!item){
-        skipped.push(`${line}행: 여수문구사 품목이 비어 있음`);
-        continue;
-      }
-      const id=importedId || crypto.randomUUID();
-      const purchaseRaw=firstVal(o,["구매유형"]);
-      const purchaseType=(purchaseRaw==="인터넷 대행구매" || purchaseRaw==="link") ? "link" : "store";
-      const productAmount=parseAmount(firstVal(o,["상품금액"]));
-      const fee=parseAmount(firstVal(o,["수수료금액","수수료"]));
-      const shipping=parseAmount(firstVal(o,["택배비"]));
-
-      stationeryTransactions.push({
-        id,
-        date,
-        purchaseType,
-        item,
-        link:firstVal(o,["인터넷링크","링크"]),
-        amount:Number.isFinite(productAmount)?productAmount:totalAmount,
-        feeMode:firstVal(o,["수수료방식"]) || (purchaseType==="link"?"percent":"none"),
-        feeRate:Number(firstVal(o,["수수료율"])||0),
-        feeFixed:0,
-        fee:Number.isFinite(fee)?fee:0,
-        shipping:Number.isFinite(shipping)?shipping:0,
-        total:totalAmount,
-        qty:firstVal(o,["수량"]),
-        
-        memo:firstVal(o,["메모","비고"])
-      });
-      if(importedId) idMap.set(importedId,id);
-      addedStationery++;
-      continue;
-    }
-
-    const categoryName=firstVal(o,["예산항목","비목","카테고리"]);
-    const subName=firstVal(o,["세부항목","세부항목/품목"]);
-    const merchant=firstVal(o,["사용처","사용처/수량","거래처","내용"]);
-    const category=categoryIdFromName(categoryName);
-    const subCategory=normalizeSubcategory(category,subName);
-
-    if(!category || !subCategory || !merchant){
-      skipped.push(`${line}행: 예산항목·세부항목·사용처 확인 필요`);
-      continue;
-    }
-
-    if(importedId && existingById.has(importedId)){
-      idMap.set(importedId,importedId);
-      duplicates++;
-      continue;
-    }
-
-    const dupKey=`${date}|${merchant}|${totalAmount}`;
-    if(existingKeys.has(dupKey)){
-      duplicates++;
-      const match=transactions.find(t=>`${t.date}|${t.merchant}|${Number(t.amount)}`===dupKey);
-      if(importedId && match) idMap.set(importedId,match.id);
-      continue;
-    }
-
-    const id=importedId || crypto.randomUUID();
-    const evidence=(firstVal(o,["증빙상태"])||"필요").includes("완료")?"done":"todo";
-    const tx={
-      id,date,category,subCategory,merchant,amount:totalAmount,
-      payment:firstVal(o,["결제수단"]) || "전용카드",
-      evidence,
-      memo:firstVal(o,["메모","비고"])
-    };
-    transactions.push(tx);
-    existingById.set(id,tx);
-    existingKeys.add(dupKey);
-    if(importedId) idMap.set(importedId,id);
-
-    evidenceDocs[id]=defaultEvidenceDocs(tx);
-    if(evidence==="done"){
-      evidenceDocs[id].forEach(d=>{if(d.required!==false)d.checked=true;});
-    }
-    addedBudget++;
-  }
-
-  // 증빙서류 행은 내역ID로 사업비 내역에 연결
-  const grouped=new Map();
-  for(const {o,line} of evidenceRows){
-    const sourceId=firstVal(o,["내역ID","ID","id"]);
-    const docName=firstVal(o,["증빙서류명","서류명","증빙서류"]);
-    if(!sourceId || !docName){
-      skipped.push(`${line}행: 증빙서류 내역ID 또는 서류명 확인 필요`);
-      continue;
-    }
-    const targetId=idMap.get(sourceId) || (existingById.has(sourceId)?sourceId:"");
-    if(!targetId){
-      skipped.push(`${line}행: 연결할 사업비 내역을 찾지 못함`);
-      continue;
-    }
-    if(!grouped.has(targetId)) grouped.set(targetId,[]);
-    grouped.get(targetId).push({
-      name:docName,
-      checked:parseBool(firstVal(o,["체크여부","체크","완료여부"])),
-      required:!["조건부","선택"].includes(firstVal(o,["필수여부"])),
-      conditional:["조건부","선택"].includes(firstVal(o,["필수여부"])),
-      custom:parseBool(firstVal(o,["사용자추가","커스텀"]))
-    });
-  }
-
-  grouped.forEach((docs,id)=>{
-    evidenceDocs[id]=docs;
-    const t=transactions.find(x=>x.id===id);
-    if(t){
-      syncEvidenceStatus(t);
-      updatedEvidence++;
-    }
-  });
-
-  save();saveStationery();saveEvidence();render();
-
-  const parts=[
-    `사업비 <b>${addedBudget}건</b>`,
-    `여수문구사 <b>${addedStationery}건</b>`,
-    `증빙 체크상태 <b>${updatedEvidence}건</b>`
-  ];
-  if(duplicates)parts.push(`중복 제외 <b>${duplicates}건</b>`);
-  let html=`통합 CSV 가져오기 완료: ${parts.join(" · ")}`;
-  if(skipped.length){
-    html+=`<br>확인 필요한 행 ${skipped.length}건: ${skipped.slice(0,6).map(escapeHtml).join(" / ")}${skipped.length>6?" 외":""}`;
-  }
-  showImportResult(html,skipped.length?"warn":"success");
-}
-async function handleCsvFile(file,input){
-  if(!file)return;
-  try{
-    importCsvText(await file.text());
-  }catch(err){
-    showImportResult(`CSV 가져오기 실패: ${escapeHtml(err.message||"파일 형식을 확인해 주세요.")}`,"error");
-  }finally{
-    input.value="";
-  }
-}
-if($("#csvImportInput")) $("#csvImportInput").onchange=e=>handleCsvFile(e.target.files[0],e.target);
-
-function download(name,text,type){
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([text],{type}));
-  a.download=name;
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-$("#dataManageBtn").onclick=()=>{
-  const d=$("#dataManageDialog");
-  if(typeof d.showModal==="function") d.showModal();
-  else d.setAttribute("open","");
+$("#csvExportBtn").onclick=()=>{
+  const h=["구분","내역ID","날짜","예산항목","세부항목","사용처","품목","수량","금액","상품금액","결제수단","증빙상태","구매유형","인터넷링크","수수료방식","수수료율","수수료금액","택배비","증빙서류명","체크여부","필수여부","사용자추가","회의제목","사진완료","회의록완료","메모"];
+  const rows=[h];
+  transactions.forEach(t=>{rows.push(["사업비",t.id,t.date,catById(t.category)?.name||"",t.subCategory,t.merchant,"","",t.amount,"",t.payment||"",t.evidence||"todo","","","","","","","","","","","","","",t.memo||""]);(evidenceDocs[t.id]||[]).forEach(d=>rows.push(["증빙서류",t.id,"","","","","","","","","","","","","","","","",d.name,d.checked?"체크":"미체크",d.required===false?"조건부":"필수",d.custom?"예":"아니오","","","", ""]))});
+  stationeryTransactions.forEach(t=>rows.push(["여수문구사",t.id,t.date,"사무관리비","소모성물품구입비","",t.item,t.qty||"",Number(t.total??t.amount??0),Number(t.amount||0),"","","인터넷 대행구매"===((t.purchaseType||"store")==="link"?"인터넷 대행구매":"직접구매")?"인터넷 대행구매":"직접구매",t.link||"",t.feeMode||"",t.feeRate||0,t.fee||0,t.shipping||0,"","","","","","","",t.memo||""]));
+  meetings.forEach(m=>rows.push(["회의",m.id,m.date,"","","","","","","","","","","","","","","","","","","",m.title,m.photo?"완료":"미완료",m.minutes?"완료":"미완료",m.memo||""]));
+  const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");download(`무지개반사_통합백업_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
 };
-$("#closeDataManageDialog").onclick=()=>{
-  const d=$("#dataManageDialog");
-  if(typeof d.close==="function") d.close();
-  else d.removeAttribute("open");
-};
-$("#backupBtn").onclick=()=>download(
-  `무지개반사_예산백업_${new Date().toISOString().slice(0,10)}.json`,
-  JSON.stringify({version:22,transactions,stationeryTransactions,evidenceDocs},null,2),"application/json"
-);
-$("#csvBtn").onclick=()=>{
-  const rows=[[
-    "구분","내역ID","날짜","예산항목","세부항목","사용처","품목","수량","금액","상품금액",
-    "결제수단","증빙상태","구매유형","인터넷링크","수수료방식","수수료율","수수료금액","택배비",
-    "증빙서류명","체크여부","필수여부","사용자추가","메모"
-  ]];
 
-  [...transactions].sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{
-    rows.push([
-      "사업비",t.id,t.date,catById(t.category)?.name||"",t.subCategory,t.merchant,"","",t.amount,"",
-      t.payment||"전용카드",t.evidence==="done"?"완료":"필요","","","","","","","","","","",t.memo||""
-    ]);
-
-    (evidenceDocs[t.id]||[]).forEach(d=>{
-      rows.push([
-        "증빙서류",t.id,"","","","","","","","","","","","","","","","",
-        d.name,d.checked?"체크":"미체크",d.required===false?"조건부":"필수",d.custom?"예":"아니오",""
-      ]);
-    });
-  });
-
-  [...stationeryTransactions].sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>{
-    rows.push([
-      "여수문구사",t.id,t.date,"사무관리비","소모성물품구입비","",t.item,t.qty||"",
-      Number(t.total ?? t.amount ?? 0),Number(t.amount||0),"여수문구사",
-      "",(t.purchaseType||"store")==="link"?"인터넷 대행구매":"여수문구사 직접구매",
-      t.link||"",t.feeMode||"",Number(t.feeRate||0),Number(t.fee||0),Number(t.shipping||0),
-      "","","","",t.memo||""
-    ]);
-  });
-
-  const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
-  download(`무지개반사_통합백업_${new Date().toISOString().slice(0,10)}.csv`,csv,"text/csv;charset=utf-8");
-};
-$("#restoreInput").onchange=async e=>{
+$("#csvImportInput").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
-    const obj=JSON.parse(await f.text());
-    if(!Array.isArray(obj.transactions))throw new Error();
-    if(confirm("현재 데이터를 백업 파일 내용으로 바꿀까요?")){
-      transactions=obj.transactions;
-      stationeryTransactions=Array.isArray(obj.stationeryTransactions)?obj.stationeryTransactions:[];
-      evidenceDocs=obj.evidenceDocs&&typeof obj.evidenceDocs==="object"?obj.evidenceDocs:{};
-      save();saveStationery();saveEvidence();migrateRentSubs();syncAllEvidenceStatuses();render();
+    const rows=parseCsv(await f.text());if(rows.length<2)throw new Error("데이터 없음");const headers=rows[0].map(norm),objs=rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,String(r[i]??"").trim()])));
+    const evRows=[];
+    for(const o of objs){
+      const type=first(o,["구분"]),id=first(o,["내역ID"])||uid();
+      if(type==="증빙서류"){evRows.push(o);continue}
+      if(type==="회의"){meetings.push({id,date:dateNorm(first(o,["날짜"])),title:first(o,["회의제목"])||"회의",photo:bool(first(o,["사진완료"])),minutes:bool(first(o,["회의록완료"])),memo:first(o,["메모"])});continue}
+      if(type==="여수문구사"){
+        const amount=Number(first(o,["상품금액"])||first(o,["금액"])||0),fee=Number(first(o,["수수료금액"])||0),shipping=Number(first(o,["택배비"])||0);
+        stationeryTransactions.push({id,date:dateNorm(first(o,["날짜"])),purchaseType:first(o,["구매유형"]).includes("인터넷")?"link":"store",item:first(o,["품목"])||"품목",qty:first(o,["수량"]),amount,link:first(o,["인터넷링크"]),feeMode:first(o,["수수료방식"])||"none",feeRate:Number(first(o,["수수료율"])||0),fee,shipping,total:Number(first(o,["금액"])||amount+fee+shipping),memo:first(o,["메모"])});continue}
+      if(type==="사업비"){
+        const catName=first(o,["예산항목"]),cat=BUDGETS.find(b=>b.name===catName)?.id||"";const t={id,date:dateNorm(first(o,["날짜"])),category:cat,subCategory:first(o,["세부항목"]),merchant:first(o,["사용처"]),amount:Number(first(o,["금액"])||0),payment:first(o,["결제수단"])||"전용카드",evidence:first(o,["증빙상태"])||"todo",memo:first(o,["메모"])};transactions.push(t);ensureEvidence(t)}
     }
-  }catch{alert("올바른 백업 파일이 아닙니다.");}
+    evRows.forEach(o=>{const id=first(o,["내역ID"]),name=first(o,["증빙서류명"]);if(!id||!name)return;if(!evidenceDocs[id])evidenceDocs[id]=[];evidenceDocs[id].push({name,checked:bool(first(o,["체크여부"])),required:first(o,["필수여부"])!=="조건부",custom:bool(first(o,["사용자추가"]))})});
+    transactions.forEach(syncEvidence);save();saveStationery();saveEvidence();saveMeetings();renderAll();$("#csvImportResult").className="import-result";$("#csvImportResult").textContent="통합 CSV 가져오기가 완료됐어요.";
+  }catch(err){$("#csvImportResult").className="import-result error";$("#csvImportResult").textContent="CSV 가져오기에 실패했어요. 파일 형식을 확인해 주세요."}
   e.target.value="";
 };
-$("#resetBtn").onclick=()=>{
-  if(confirm("사업비와 여수문구사 내역을 모두 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){
-    transactions=[];stationeryTransactions=[];evidenceDocs={};
-    save();saveStationery();saveEvidence();render();
-  }
-};
 
+$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.2",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos},null,2),"application/json");
+$("#restoreInput").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!Array.isArray(o.transactions))throw new Error();if(confirm("현재 데이터를 백업 내용으로 바꿀까요?")){transactions=o.transactions||[];stationeryTransactions=o.stationeryTransactions||[];evidenceDocs=o.evidenceDocs||{};todos=o.todos||[];meetings=o.meetings||[];meetingTodos=o.meetingTodos||[];save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();renderAll()}}catch{alert("올바른 백업 파일이 아닙니다.")}e.target.value=""};
+$("#resetBtn").onclick=()=>{if(confirm("모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){transactions=[];stationeryTransactions=[];evidenceDocs={};todos=[];meetings=[];meetingTodos=[];save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();renderAll()}};
 
-function removePreviouslyBundledEntriesOnce(){
-  const MIGRATION_KEY="mujigaebansa_v10_removed_preloaded_entries";
-  if(localStorage.getItem(MIGRATION_KEY)==="1") return;
+/* 전체 렌더 */
+function renderAll(){renderTodos();renderMeetingTodos();renderHome();renderTransactions();renderStationery();renderMeetings()}
+migrateRentSubs();transactions.forEach(t=>{ensureEvidence(t);syncEvidence(t)});save();initSelects();renderAll();
 
-  const bundledIds=new Set([
-    "sms-2026-07-21-signneeds-44000",
-    "sms-2026-07-22-seoulhaejangguk-90000",
-    "sms-2026-07-23-badagimbap-88000",
-    "sms-2026-07-23-paikdabang-19800",
-    "sms-2026-07-24-sp-associates-28800",
-    "sms-2026-07-24-golmokgil-89000",
-    "sms-2026-07-27-palgyechon-72000",
-    "sms-2026-07-28-ddungeon-63000",
-    "sms-2026-07-29-sugungbanjeom-63000",
-    "sms-2026-08-05-daejichanggo-28000",
-    "manual-2026-07-29-startup-education-2000000"
-  ]);
-
-  let changed=false;
-  transactions=transactions.filter(t=>{
-    if(bundledIds.has(t.id)){
-      delete evidenceDocs[t.id];
-      changed=true;
-      return false;
-    }
-    return true;
-  });
-
-  if(changed){
-    save();
-    saveEvidence();
-  }
-  localStorage.setItem(MIGRATION_KEY,"1");
-}
-
-if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(reg=>reg.update()).catch(()=>{});
-}
-migrateRentSubs();
-removePreviouslyBundledEntriesOnce();
-syncAllEvidenceStatuses();
-initSelects();
-renderTodos();
-render();
+if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}
