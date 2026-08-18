@@ -7,12 +7,12 @@
   <title>무지개반사 예산관리</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.svg"/>
-  <link rel="stylesheet" href="style.css?v=20"/>
+  <link rel="stylesheet" href="style.css?v=22"/>
 </head>
 <body>
   <header class="top">
     <div>
-      <div class="eyebrow">2026 전남형 청년공동체 · <b>v20</b></div>
+      <div class="eyebrow">2026 전남형 청년공동체 · <b>v22</b></div>
       <h1>무지개반사 예산관리</h1>
     </div>
     <button id="dataManageBtn" class="ghost">데이터 관리</button>
@@ -111,12 +111,7 @@
             <option value="2026-09">2026년 9월</option>
             <option value="2026-10">2026년 10월</option>
           </select>
-          <select id="stationeryEvidenceFilter">
-            <option value="">증빙 전체</option>
-            <option value="done">증빙 완료</option>
-            <option value="todo">증빙 필요</option>
-          </select>
-        </div>
+          </div>
         <div id="stationeryList" class="tx-list"></div>
         <div id="stationeryEmpty" class="empty">아직 등록된 여수문구사 사용 내역이 없어요.</div>
       </section>
@@ -278,12 +273,6 @@
         </div>
       </div>
       <label>수량<input id="stationeryQty" type="text" placeholder="예: 2박스 / 5개"/></label>
-      <label>증빙상태
-        <select id="stationeryEvidence">
-          <option value="done">완료</option>
-          <option value="todo">필요</option>
-        </select>
-      </label>
       <label>메모<textarea id="stationeryMemo" rows="3" placeholder="사용 목적, 영수증 메모 등"></textarea></label>
       <div class="dialog-actions">
         <button type="button" id="deleteStationeryBtn" class="danger hidden">삭제</button>
@@ -315,6 +304,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=22"></script>
 </body>
 </html>

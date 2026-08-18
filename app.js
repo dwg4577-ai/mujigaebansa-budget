@@ -334,7 +334,6 @@ function renderTx(){
     return `<div class="tx" data-id="${t.id}">
       <div><div class="tx-title">${escapeHtml(t.merchant)}</div>
       <div class="tx-meta">${t.date} · ${b?.name||""} › ${escapeHtml(t.subCategory||"")} · ${escapeHtml(t.payment||"")}
-      <span class="badge ${t.evidence==='todo'?'todo':''}">${t.evidence==='todo'?'증빙 필요':'증빙 완료'}</span>
       ${t.memo?`<br>${escapeHtml(t.memo)}`:""}</div></div>
       <div class="tx-amount">${fmt(t.amount)}</div>
     </div>`;
@@ -344,14 +343,12 @@ function renderTx(){
 }
 function renderStationery(){
 
-  const mf=$("#stationeryMonthFilter").value,ef=$("#stationeryEvidenceFilter").value;
+  const mf=$("#stationeryMonthFilter").value;
   let rows=[...stationeryTransactions].sort((a,b)=>b.date.localeCompare(a.date));
   if(mf)rows=rows.filter(t=>monthKey(t.date)===mf);
-  if(ef)rows=rows.filter(t=>t.evidence===ef);
 
   const cap=[];
   if(mf) cap.push(`${Number(mf.slice(5))}월`);
-  if(ef) cap.push(ef==="done"?"증빙 완료":"증빙 필요");
   $("#stationeryListCaption").textContent=cap.length?cap.join(" · ")+" 내역":"전체 내역";
 
   $("#stationeryList").innerHTML=rows.map(t=>{
@@ -376,7 +373,6 @@ function renderStationery(){
         </div>
         <div class="tx-meta compact-meta">
           ${t.date}${qtyText} · ${purchaseText}${extra}
-          <span class="badge ${t.evidence==='todo'?'todo':''}">${t.evidence==='todo'?'증빙 필요':'증빙 완료'}</span>
         </div>
         ${t.memo?`<div class="tx-note">${escapeHtml(t.memo)}</div>`:""}
       </div>
@@ -473,7 +469,7 @@ function openStationeryNew(){
   $("#stationeryFeeFixed").value="0";
   $("#stationeryShipping").value="0";
   $("#stationeryQty").value="";
-  $("#stationeryEvidence").value="done";
+  
   $("#stationeryMemo").value="";
   $("#deleteStationeryBtn").classList.add("hidden");
   updateStationeryFeeUI();
@@ -493,7 +489,7 @@ function openStationeryEdit(id){
   $("#stationeryFeeFixed").value=t.feeFixed ?? 0;
   $("#stationeryShipping").value=t.shipping ?? 0;
   $("#stationeryQty").value=t.qty||"";
-  $("#stationeryEvidence").value=t.evidence;
+  
   $("#stationeryMemo").value=t.memo||"";
   $("#deleteStationeryBtn").classList.remove("hidden");
   updateStationeryFeeUI();
@@ -526,7 +522,6 @@ $("#stationeryForm").addEventListener("submit",e=>{
     shipping,
     total,
     qty:$("#stationeryQty").value.trim(),
-    evidence:$("#stationeryEvidence").value,
     memo:$("#stationeryMemo").value.trim()
   };
 
@@ -692,11 +687,6 @@ $("#stationeryShipping").oninput=updateStationeryFeeUI;
 $("#addStationeryBtn").onclick=openStationeryNew;
 $("#closeStationeryDialog").onclick=()=>$("#stationeryDialog").close();
 $("#stationeryMonthFilter").onchange=renderStationery;
-$("#stationeryEvidenceFilter").onchange=renderStationery;
-
-
-
-
 function parseCsv(text){
   text=String(text||"").replace(/^\uFEFF/,"");
   const rows=[];
@@ -843,7 +833,7 @@ function importCsvText(text){
         shipping:Number.isFinite(shipping)?shipping:0,
         total:totalAmount,
         qty:firstVal(o,["수량"]),
-        evidence:(firstVal(o,["증빙상태"])||"필요").includes("완료")?"done":"todo",
+        
         memo:firstVal(o,["메모","비고"])
       });
       if(importedId) idMap.set(importedId,id);
@@ -975,7 +965,7 @@ $("#closeDataManageDialog").onclick=()=>{
 };
 $("#backupBtn").onclick=()=>download(
   `무지개반사_예산백업_${new Date().toISOString().slice(0,10)}.json`,
-  JSON.stringify({version:20,transactions,stationeryTransactions,evidenceDocs},null,2),"application/json"
+  JSON.stringify({version:22,transactions,stationeryTransactions,evidenceDocs},null,2),"application/json"
 );
 $("#csvBtn").onclick=()=>{
   const rows=[[
@@ -1002,7 +992,7 @@ $("#csvBtn").onclick=()=>{
     rows.push([
       "여수문구사",t.id,t.date,"사무관리비","소모성물품구입비","",t.item,t.qty||"",
       Number(t.total ?? t.amount ?? 0),Number(t.amount||0),"여수문구사",
-      t.evidence==="done"?"완료":"필요",(t.purchaseType||"store")==="link"?"인터넷 대행구매":"여수문구사 직접구매",
+      "",(t.purchaseType||"store")==="link"?"인터넷 대행구매":"여수문구사 직접구매",
       t.link||"",t.feeMode||"",Number(t.feeRate||0),Number(t.fee||0),Number(t.shipping||0),
       "","","","",t.memo||""
     ]);
