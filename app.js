@@ -38,8 +38,16 @@ const saveMeetings=()=>localStorage.setItem(MEETING_KEY,JSON.stringify(meetings)
 const saveMeetingTodos=()=>localStorage.setItem(MEETING_TODO_KEY,JSON.stringify(meetingTodos));
 
 function uid(){return crypto.randomUUID?crypto.randomUUID():"id-"+Date.now()+"-"+Math.random().toString(16).slice(2)}
-function openDialog(d){if(typeof d.showModal==="function")d.showModal();else d.setAttribute("open","")}
-function closeDialog(d){if(typeof d.close==="function")d.close();else d.removeAttribute("open")}
+function openDialog(d){
+  document.body.classList.add("modal-open");
+  if(typeof d.showModal==="function") d.showModal();
+  else d.setAttribute("open","");
+}
+function closeDialog(d){
+  if(typeof d.close==="function") d.close();
+  else d.removeAttribute("open");
+  document.body.classList.remove("modal-open");
+}
 
 function switchPage(name){
   document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id===name+"Page"));
@@ -435,7 +443,7 @@ $("#csvImportInput").onchange=async e=>{
   e.target.value="";
 };
 
-$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.2",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos},null,2),"application/json");
+$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.3",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos},null,2),"application/json");
 $("#restoreInput").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!Array.isArray(o.transactions))throw new Error();if(confirm("현재 데이터를 백업 내용으로 바꿀까요?")){transactions=o.transactions||[];stationeryTransactions=o.stationeryTransactions||[];evidenceDocs=o.evidenceDocs||{};todos=o.todos||[];meetings=o.meetings||[];meetingTodos=o.meetingTodos||[];save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();renderAll()}}catch{alert("올바른 백업 파일이 아닙니다.")}e.target.value=""};
 $("#resetBtn").onclick=()=>{if(confirm("모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){transactions=[];stationeryTransactions=[];evidenceDocs={};todos=[];meetings=[];meetingTodos=[];save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();renderAll()}};
 
