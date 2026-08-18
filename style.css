@@ -230,3 +230,118 @@ dialog form{
 body.modal-open{
   overflow:hidden;
 }
+
+/* v2.4 문구사 현황 + 팝업 배경 완전 고정 */
+.clickable-card{
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.clickable-card:active{
+  transform:scale(.985);
+}
+.stationery-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:9px;
+  align-items:center;
+  margin:6px 0 16px;
+}
+.stationery-total-card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:15px;
+  padding:11px 13px;
+  min-width:0;
+}
+.stationery-total-card span{
+  display:block;
+  font-size:10.5px;
+  color:var(--muted);
+}
+.stationery-total-card strong{
+  display:block;
+  margin-top:4px;
+  font-size:18px;
+}
+.stationery-month-checks{
+  display:flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:nowrap;
+}
+.stationery-month-checks label{
+  display:flex;
+  align-items:center;
+  gap:4px;
+  white-space:nowrap;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:8px 9px;
+  font-size:10.5px;
+  color:var(--text);
+}
+.stationery-month-checks input{
+  width:15px;
+  height:15px;
+  margin:0;
+  padding:0;
+}
+
+/* body 자체를 viewport에 고정해서 iOS/PWA에서도 뒷화면이 움직이지 않게 */
+body.modal-open{
+  position:fixed!important;
+  left:0;
+  right:0;
+  width:100%;
+  overflow:hidden!important;
+  touch-action:none;
+}
+body.modal-open dialog,
+body.modal-open dialog *{
+  touch-action:auto;
+}
+dialog .dialog-scroll{
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+dialog{
+  overscroll-behavior:none;
+}
+
+@media(max-width:560px){
+  .stationery-top{
+    grid-template-columns:1fr;
+    gap:7px;
+  }
+  .stationery-month-checks{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    width:100%;
+  }
+  .stationery-month-checks label{
+    justify-content:center;
+    padding:8px 5px;
+  }
+}
+
+/* v2.5 앱 확대 방지 */
+html,
+body,
+button,
+input,
+select,
+textarea,
+label,
+a,
+.card,
+.tx,
+.meeting-card,
+.bottom-tab{
+  touch-action:manipulation;
+}
+html,
+body{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}

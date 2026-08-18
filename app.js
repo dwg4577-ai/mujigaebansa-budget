@@ -17,6 +17,7 @@ const EVIDENCE_KEY="mujigaebansa_evidence_docs_v1";
 const TODO_KEY="mujigaebansa_todos_v1";
 const MEETING_KEY="mujigaebansa_meetings_v1";
 const MEETING_TODO_KEY="mujigaebansa_meeting_todos_v1";
+const ST_PAYMENT_KEY="mujigaebansa_stationery_month_payments_v1";
 
 let transactions=JSON.parse(localStorage.getItem(KEY)||"[]");
 let stationeryTransactions=JSON.parse(localStorage.getItem(ST_KEY)||"[]");
@@ -24,6 +25,7 @@ let evidenceDocs=JSON.parse(localStorage.getItem(EVIDENCE_KEY)||"{}");
 let todos=JSON.parse(localStorage.getItem(TODO_KEY)||"[]");
 let meetings=JSON.parse(localStorage.getItem(MEETING_KEY)||"[]");
 let meetingTodos=JSON.parse(localStorage.getItem(MEETING_TODO_KEY)||"[]");
+let stationeryPayments=JSON.parse(localStorage.getItem(ST_PAYMENT_KEY)||'{"8":false,"9":false,"10":false}');
 
 const $=s=>document.querySelector(s);
 const fmt=n=>Number(n||0).toLocaleString("ko-KR")+"원";
@@ -36,17 +38,31 @@ const saveEvidence=()=>localStorage.setItem(EVIDENCE_KEY,JSON.stringify(evidence
 const saveTodos=()=>localStorage.setItem(TODO_KEY,JSON.stringify(todos));
 const saveMeetings=()=>localStorage.setItem(MEETING_KEY,JSON.stringify(meetings));
 const saveMeetingTodos=()=>localStorage.setItem(MEETING_TODO_KEY,JSON.stringify(meetingTodos));
+const saveStationeryPayments=()=>localStorage.setItem(ST_PAYMENT_KEY,JSON.stringify(stationeryPayments));
 
 function uid(){return crypto.randomUUID?crypto.randomUUID():"id-"+Date.now()+"-"+Math.random().toString(16).slice(2)}
-function openDialog(d){
+let lockedScrollY=0;
+function lockBackground(){
+  if(document.body.classList.contains("modal-open")) return;
+  lockedScrollY=window.scrollY||document.documentElement.scrollTop||0;
+  document.body.style.top=`-${lockedScrollY}px`;
   document.body.classList.add("modal-open");
+}
+function unlockBackground(){
+  if(!document.body.classList.contains("modal-open")) return;
+  document.body.classList.remove("modal-open");
+  document.body.style.top="";
+  window.scrollTo(0,lockedScrollY);
+}
+function openDialog(d){
+  lockBackground();
   if(typeof d.showModal==="function") d.showModal();
   else d.setAttribute("open","");
 }
 function closeDialog(d){
   if(typeof d.close==="function") d.close();
   else d.removeAttribute("open");
-  document.body.classList.remove("modal-open");
+  unlockBackground();
 }
 
 function switchPage(name){
@@ -55,6 +71,9 @@ function switchPage(name){
   window.scrollTo({top:0,behavior:"smooth"});
 }
 document.querySelectorAll(".bottom-tab").forEach(b=>b.onclick=()=>switchPage(b.dataset.page));
+$("#stationerySummaryCard").onclick=()=>switchPage("stationery");
+$("#stationerySummaryCard").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();switchPage("stationery")}});
+
 
 function migrateRentSubs(){
   let changed=false;
@@ -223,6 +242,8 @@ function renderHome(){
   $("#totalBudget").textContent=fmt(total);$("#spentTotal").textContent=fmt(spent);$("#remainingTotal").textContent=fmt(total-spent);
   $("#spentRate").textContent=(spent/total*100).toFixed(1)+"% 집행";$("#remainingRate").textContent=Math.max(0,(total-spent)/total*100).toFixed(1)+"% 남음";
   $("#stationerySpentTop").textContent=fmt(stSpent);
+  const pendingMonth=[8,9,10].find(m=>!stationeryPayments[String(m)]);
+  $("#stationeryPaymentNotice").textContent=pendingMonth?`${pendingMonth}월 결제 필요`:"8·9·10월 결제 완료";
 
   const cards=BUDGETS.map(b=>{
     const catSpent=spentFor(b.id),catRem=b.budget-catSpent;
@@ -337,6 +358,21 @@ $("#txForm").addEventListener("submit",e=>{
 $("#deleteTxBtn").onclick=()=>{const id=$("#editId").value;if(id&&confirm("이 사업비 내역을 삭제할까요?")){transactions=transactions.filter(x=>x.id!==id);delete evidenceDocs[id];save();saveEvidence();closeDialog($("#txDialog"));renderAll()}};
 
 /* 문구사 */
+/* 문구사 월별 결제 체크 */
+function renderStationeryPayments(){
+  document.querySelectorAll(".stationery-month-checks input[data-month]").forEach(c=>{
+    c.checked=!!stationeryPayments[c.dataset.month];
+  });
+}
+document.querySelectorAll(".stationery-month-checks input[data-month]").forEach(c=>{
+  c.onchange=()=>{
+    stationeryPayments[c.dataset.month]=c.checked;
+    saveStationeryPayments();
+    renderHome();
+  };
+});
+
+
 function feeAmount(){
   if($("#stationeryPurchaseType").value!=="link")return 0;
   const amount=Number($("#stationeryAmount").value||0),mode=$("#stationeryFeeMode").value;
@@ -353,6 +389,9 @@ function updateFeeUI(){
 ["stationeryPurchaseType","stationeryFeeMode","stationeryAmount","stationeryFeeRate","stationeryFeeFixed","stationeryShipping"].forEach(id=>$("#"+id).addEventListener(id.includes("Type")||id.includes("Mode")?"change":"input",updateFeeUI));
 
 function renderStationery(){
+  const grandTotal=stationeryTransactions.reduce((a,t)=>a+Number(t.total??t.amount??0),0);
+  $("#stationeryPageTotal").textContent=fmt(grandTotal);
+  renderStationeryPayments();
   let rows=[...stationeryTransactions].sort((a,b)=>b.date.localeCompare(a.date));const m=$("#stationeryMonthFilter").value;if(m)rows=rows.filter(t=>monthKey(t.date)===m);
   $("#stationeryCaption").textContent=m?`${Number(m.slice(5))}월 내역`:"전체 내역";
   $("#stationeryList").innerHTML=rows.map(t=>{
@@ -443,12 +482,23 @@ $("#csvImportInput").onchange=async e=>{
   e.target.value="";
 };
 
-$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.3",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos},null,2),"application/json");
-$("#restoreInput").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!Array.isArray(o.transactions))throw new Error();if(confirm("현재 데이터를 백업 내용으로 바꿀까요?")){transactions=o.transactions||[];stationeryTransactions=o.stationeryTransactions||[];evidenceDocs=o.evidenceDocs||{};todos=o.todos||[];meetings=o.meetings||[];meetingTodos=o.meetingTodos||[];save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();renderAll()}}catch{alert("올바른 백업 파일이 아닙니다.")}e.target.value=""};
-$("#resetBtn").onclick=()=>{if(confirm("모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){transactions=[];stationeryTransactions=[];evidenceDocs={};todos=[];meetings=[];meetingTodos=[];save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();renderAll()}};
+$("#backupBtn").onclick=()=>download(`무지개반사_전체백업_${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({version:"2.5",transactions,stationeryTransactions,evidenceDocs,todos,meetings,meetingTodos,stationeryPayments},null,2),"application/json");
+$("#restoreInput").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(!Array.isArray(o.transactions))throw new Error();if(confirm("현재 데이터를 백업 내용으로 바꿀까요?")){transactions=o.transactions||[];stationeryTransactions=o.stationeryTransactions||[];evidenceDocs=o.evidenceDocs||{};todos=o.todos||[];meetings=o.meetings||[];meetingTodos=o.meetingTodos||[];stationeryPayments=o.stationeryPayments||{"8":false,"9":false,"10":false};save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();saveStationeryPayments();renderAll()}}catch{alert("올바른 백업 파일이 아닙니다.")}e.target.value=""};
+$("#resetBtn").onclick=()=>{if(confirm("모든 데이터를 삭제할까요? 이 작업은 되돌릴 수 없습니다.")){transactions=[];stationeryTransactions=[];evidenceDocs={};todos=[];meetings=[];meetingTodos=[];stationeryPayments={"8":false,"9":false,"10":false};save();saveStationery();saveEvidence();saveTodos();saveMeetings();saveMeetingTodos();saveStationeryPayments();renderAll()}};
 
 /* 전체 렌더 */
 function renderAll(){renderTodos();renderMeetingTodos();renderHome();renderTransactions();renderStationery();renderMeetings()}
 migrateRentSubs();transactions.forEach(t=>{ensureEvidence(t);syncEvidence(t)});save();initSelects();renderAll();
 
 if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{})}
+
+/* v2.5 iOS/PWA 확대 제스처 방지 */
+document.addEventListener("gesturestart",e=>e.preventDefault(),{passive:false});
+document.addEventListener("gesturechange",e=>e.preventDefault(),{passive:false});
+document.addEventListener("gestureend",e=>e.preventDefault(),{passive:false});
+let lastTouchEnd=0;
+document.addEventListener("touchend",e=>{
+  const now=Date.now();
+  if(now-lastTouchEnd<=300)e.preventDefault();
+  lastTouchEnd=now;
+},{passive:false});

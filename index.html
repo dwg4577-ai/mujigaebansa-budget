@@ -2,17 +2,17 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
   <meta name="theme-color" content="#f6f7fb"/>
   <title>무지개반사 예산관리</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.svg"/>
-  <link rel="stylesheet" href="style.css?v=2.3"/>
+  <link rel="stylesheet" href="style.css?v=2.5"/>
 </head>
 <body>
   <header class="top">
     <div>
-      <div class="eyebrow">2026 전남형 청년공동체 · <b>v2.3</b></div>
+      <div class="eyebrow">2026 전남형 청년공동체 · <b>v2.5</b></div>
       <h1>무지개반사 예산관리</h1>
     </div>
   </header>
@@ -23,7 +23,7 @@
       <section class="todo-panel" aria-label="할 일">
         <div id="todoList" class="todo-list"></div>
         <div class="todo-add-row">
-          <input id="todoInput" type="text" maxlength="80" placeholder="할 일을 한 줄로 입력"/>
+          <input id="todoInput" type="text" maxlength="80" placeholder="할 일을 입력"/>
           <button id="todoAddBtn" class="primary">추가</button>
         </div>
       </section>
@@ -44,10 +44,10 @@
           <strong id="remainingTotal">0원</strong>
           <small id="remainingRate">100% 남음</small>
         </article>
-        <article class="card">
+        <article id="stationerySummaryCard" class="card clickable-card" role="button" tabindex="0">
           <span>여수문구사 집행액</span>
           <strong id="stationerySpentTop">0원</strong>
-          <small>여수문구사 상세 내역 합계</small>
+          <small id="stationeryPaymentNotice">8월 결제 필요</small>
         </article>
       </section>
 
@@ -90,6 +90,18 @@
 
     <!-- 문구사 -->
     <section id="stationeryPage" class="page">
+      <section class="stationery-top">
+        <div class="stationery-total-card">
+          <span>총 사용금액</span>
+          <strong id="stationeryPageTotal">0원</strong>
+        </div>
+        <div class="stationery-month-checks" aria-label="여수문구사 월별 결제 확인">
+          <label><input type="checkbox" data-month="8"> <span>8월 결제</span></label>
+          <label><input type="checkbox" data-month="9"> <span>9월 결제</span></label>
+          <label><input type="checkbox" data-month="10"> <span>10월 결제</span></label>
+        </div>
+      </section>
+
       <section class="section page-section">
         <div class="section-head">
           <div>
@@ -118,7 +130,7 @@
       <section class="meeting-todo-panel">
         <div id="meetingTodoList" class="todo-list"></div>
         <div class="todo-add-row">
-          <input id="meetingTodoInput" type="text" maxlength="120" placeholder="회의 관련 할 일을 입력"/>
+          <input id="meetingTodoInput" type="text" maxlength="120" placeholder="할 일을 입력"/>
           <button id="meetingTodoAddBtn" class="primary">추가</button>
         </div>
       </section>
@@ -324,6 +336,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=2.3"></script>
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
