@@ -359,20 +359,27 @@ function renderStationery(){
     const fee=Number(t.fee||0);
     const shipping=Number(t.shipping||0);
     const total=Number(t.total ?? (Number(t.amount||0)+fee+shipping));
-    const purchaseMeta=isLink
-      ? `인터넷 대행구매 · 상품 ${fmt(t.amount)}${fee?` · 수수료 ${fmt(fee)}`:""}${shipping?` · 택배 ${fmt(shipping)}`:""}`
-      : `여수문구사 직접구매`;
+
+    const qtyText=t.qty?` · ${escapeHtml(t.qty)}`:"";
+    const purchaseText=isLink?"인터넷 대행구매":"직접구매";
+    const extraParts=[];
+    if(isLink && fee) extraParts.push(`수수료 ${fmt(fee)}`);
+    if(isLink && shipping) extraParts.push(`택배 ${fmt(shipping)}`);
+    const extra=extraParts.length?` · ${extraParts.join(" · ")}`:"";
+
     return `
-    <div class="tx" data-id="${t.id}">
-      <div>
-        <div class="tx-title">${escapeHtml(t.item)}</div>
-        <div class="tx-meta">${t.date}${t.qty?` · 수량 ${escapeHtml(t.qty)}`:""} · ${purchaseMeta}
-          <span class="badge ${t.evidence==='todo'?'todo':''}">${t.evidence==='todo'?'증빙 필요':'증빙 완료'}</span>
-          ${t.link?`<br>${escapeHtml(t.link)}`:""}
-          ${t.memo?`<br>${escapeHtml(t.memo)}`:""}
+    <div class="tx stationery-tx compact" data-id="${t.id}">
+      <div class="tx-main">
+        <div class="tx-title-row">
+          <div class="tx-title">${escapeHtml(t.item)}</div>
+          <div class="tx-amount">${fmt(total)}</div>
         </div>
+        <div class="tx-meta compact-meta">
+          ${t.date}${qtyText} · ${purchaseText}${extra}
+          <span class="badge ${t.evidence==='todo'?'todo':''}">${t.evidence==='todo'?'증빙 필요':'증빙 완료'}</span>
+        </div>
+        ${t.memo?`<div class="tx-note">${escapeHtml(t.memo)}</div>`:""}
       </div>
-      <div class="tx-amount">${fmt(total)}</div>
     </div>`;
   }).join("");
   $("#stationeryEmpty").style.display=rows.length?"none":"block";
@@ -955,9 +962,20 @@ function download(name,text,type){
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
+
+$("#dataManageBtn").onclick=()=>{
+  const d=$("#dataManageDialog");
+  if(typeof d.showModal==="function") d.showModal();
+  else d.setAttribute("open","");
+};
+$("#closeDataManageDialog").onclick=()=>{
+  const d=$("#dataManageDialog");
+  if(typeof d.close==="function") d.close();
+  else d.removeAttribute("open");
+};
 $("#backupBtn").onclick=()=>download(
   `무지개반사_예산백업_${new Date().toISOString().slice(0,10)}.json`,
-  JSON.stringify({version:18,transactions,stationeryTransactions,evidenceDocs},null,2),"application/json"
+  JSON.stringify({version:20,transactions,stationeryTransactions,evidenceDocs},null,2),"application/json"
 );
 $("#csvBtn").onclick=()=>{
   const rows=[[

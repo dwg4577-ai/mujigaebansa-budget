@@ -7,15 +7,15 @@
   <title>무지개반사 예산관리</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="apple-touch-icon" href="icon.svg"/>
-  <link rel="stylesheet" href="style.css?v=18"/>
+  <link rel="stylesheet" href="style.css?v=20"/>
 </head>
 <body>
   <header class="top">
     <div>
-      <div class="eyebrow">2026 전남형 청년공동체 · <b>v18</b></div>
+      <div class="eyebrow">2026 전남형 청년공동체 · <b>v20</b></div>
       <h1>무지개반사 예산관리</h1>
     </div>
-    <button id="backupBtn" class="ghost">백업</button>
+    <button id="dataManageBtn" class="ghost">데이터 관리</button>
   </header>
 
   <main>
@@ -144,19 +144,72 @@
         <div id="evidenceList" class="evidence-list"></div>
         <div id="evidenceEmpty" class="empty">표시할 집행 내역이 없어요.</div>
       </section>
-    <section class="section utility">
-      <h2>데이터 관리</h2>
-      <div class="utility-grid four">
-        <label class="ghost file-label">통합 CSV 가져오기<input id="csvImportInput" type="file" accept=".csv,text/csv"/></label>
-        <button id="csvBtn" class="ghost">통합 CSV 내보내기</button>
-        <label class="ghost file-label">백업 복원<input id="restoreInput" type="file" accept=".json,application/json"/></label>
-        <button id="resetBtn" class="danger-ghost">전체 초기화</button>
-      </div>
-      <p class="note">CSV 하나로 사업비 내역, 여수문구사 사용내역, 증빙서류 체크상태까지 함께 내보내고 다시 가져올 수 있습니다.</p>
-    </section>
-    </div>
+</div>
 
   </main>
+
+
+  <dialog id="dataManageDialog" class="data-dialog">
+    <div class="data-dialog-wrap">
+      <div class="dialog-head">
+        <div>
+          <h2>데이터 관리</h2>
+          <p>백업·복원과 통합 CSV 관리를 여기서 할 수 있어요.</p>
+        </div>
+        <button type="button" id="closeDataManageDialog" class="icon-btn">✕</button>
+      </div>
+
+      <div class="data-actions">
+        <section class="data-action-card">
+          <div>
+            <strong>통합 CSV 가져오기</strong>
+            <span>사업비·여수문구사·증빙 체크상태를 한 번에 불러와요.</span>
+          </div>
+          <label class="primary file-label">
+            CSV 선택
+            <input id="csvImportInput" type="file" accept=".csv,text/csv"/>
+          </label>
+        </section>
+
+        <section class="data-action-card">
+          <div>
+            <strong>통합 CSV 내보내기</strong>
+            <span>현재 데이터를 하나의 CSV 파일로 저장해요.</span>
+          </div>
+          <button id="csvBtn" class="ghost">CSV 내보내기</button>
+        </section>
+
+        <section class="data-action-card">
+          <div>
+            <strong>전체 백업</strong>
+            <span>앱의 전체 데이터를 JSON 파일로 백업해요.</span>
+          </div>
+          <button id="backupBtn" class="ghost">JSON 백업</button>
+        </section>
+
+        <section class="data-action-card">
+          <div>
+            <strong>백업 복원</strong>
+            <span>이전에 저장한 JSON 백업 파일로 복원해요.</span>
+          </div>
+          <label class="ghost file-label">
+            JSON 선택
+            <input id="restoreInput" type="file" accept=".json,application/json"/>
+          </label>
+        </section>
+      </div>
+
+      <div id="csvImportResult" class="import-result hidden"></div>
+
+      <div class="data-danger-zone">
+        <div>
+          <strong>전체 초기화</strong>
+          <span>사업비·여수문구사·증빙 데이터를 모두 삭제합니다.</span>
+        </div>
+        <button id="resetBtn" class="danger-ghost">전체 초기화</button>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="txDialog">
     <form id="txForm" method="dialog">
@@ -262,6 +315,6 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=20"></script>
 </body>
 </html>

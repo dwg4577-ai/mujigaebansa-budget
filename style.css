@@ -426,3 +426,149 @@ dialog::backdrop{background:rgba(0,0,0,.35);backdrop-filter:blur(2px)}
 #budgetTransactionsSection{
   scroll-margin-top:88px;
 }
+
+/* v19 데이터 관리 팝업 */
+.data-dialog{
+  width:min(620px, calc(100vw - 28px));
+  max-height:86vh;
+  padding:0;
+  overflow:hidden;
+  border-radius:22px;
+}
+.data-dialog-wrap{
+  display:flex;
+  flex-direction:column;
+  max-height:86vh;
+  background:#fff;
+}
+.data-dialog .dialog-head{
+  padding:16px 18px 13px;
+  border-bottom:1px solid var(--line);
+}
+.data-dialog .dialog-head h2{
+  margin:0;
+  font-size:20px;
+}
+.data-dialog .dialog-head p{
+  margin:4px 0 0;
+  font-size:12px;
+  color:var(--muted);
+}
+.data-actions{
+  display:grid;
+  gap:10px;
+  padding:14px 16px 6px;
+  overflow:auto;
+}
+.data-action-card{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:13px;
+  background:#fafbfe;
+}
+.data-action-card strong,
+.data-danger-zone strong{
+  display:block;
+  font-size:14px;
+}
+.data-action-card span,
+.data-danger-zone span{
+  display:block;
+  margin-top:3px;
+  font-size:11px;
+  color:var(--muted);
+  line-height:1.45;
+}
+.data-action-card .file-label{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:100px;
+}
+.data-dialog .import-result{
+  margin:8px 16px 0;
+}
+.data-danger-zone{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+  margin:12px 16px 16px;
+  padding:13px;
+  border:1px solid #efc4c3;
+  border-radius:14px;
+  background:#fff8f8;
+}
+@media(max-width:520px){
+  .data-dialog{
+    width:calc(100vw - 24px);
+  }
+  .data-action-card,
+  .data-danger-zone{
+    grid-template-columns:1fr;
+  }
+  .data-action-card button,
+  .data-action-card .file-label,
+  .data-danger-zone button{
+    width:100%;
+  }
+}
+
+/* v20 여수문구사 내역 압축형 */
+.stationery-tx.compact{
+  display:block;
+  padding:11px 12px;
+}
+.stationery-tx.compact .tx-main{
+  min-width:0;
+}
+.stationery-tx.compact .tx-title-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:center;
+}
+.stationery-tx.compact .tx-title{
+  font-size:15px;
+  line-height:1.3;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.stationery-tx.compact .tx-amount{
+  font-size:15px;
+  line-height:1.3;
+}
+.stationery-tx.compact .compact-meta{
+  margin-top:4px;
+  font-size:11px;
+  line-height:1.4;
+  color:var(--muted);
+  white-space:normal;
+}
+.stationery-tx.compact .badge{
+  margin-left:4px;
+  vertical-align:1px;
+}
+.stationery-tx.compact .tx-note{
+  margin-top:4px;
+  font-size:11px;
+  line-height:1.35;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media(max-width:520px){
+  .stationery-tx.compact{
+    padding:10px 11px;
+  }
+  .stationery-tx.compact .tx-title,
+  .stationery-tx.compact .tx-amount{
+    font-size:14px;
+  }
+}
